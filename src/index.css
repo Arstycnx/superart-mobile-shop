@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-dark: #0a1628;
+  --primary-blue: #1e3a5f;
+  --accent-blue: #3b82f6;
+  --accent-green: #22c55e;
+  --accent-orange: #f59e0b;
+  --accent-red: #ef4444;
+  --bg-light: #f8fafc;
+  --card-white: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Sarabun', 'Inter', sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-primary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Sidebar */
+.sidebar-link {
+  @apply flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200 text-sm font-medium;
+}
+.sidebar-link.active {
+  @apply bg-accent-blue text-white shadow-lg;
+}
+
+/* Cards */
+.stat-card {
+  @apply bg-card-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow;
+}
+
+/* Table */
+.data-table {
+  @apply w-full border-collapse;
+}
+.data-table th {
+  @apply px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider bg-bg-light border-b border-slate-200;
+}
+.data-table td {
+  @apply px-4 py-3 text-sm text-text-primary border-b border-slate-100;
+}
+.data-table tr:hover td {
+  @apply bg-blue-50/50;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply bg-accent-blue hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2;
+}
+.btn-secondary {
+  @apply bg-slate-100 hover:bg-slate-200 text-text-primary px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2;
+}
+.btn-danger {
+  @apply bg-accent-red hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2;
+}
+
+/* Input */
+.input-field {
+  @apply w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all;
+}
+
+/* Page header */
+.page-header {
+  @apply flex items-center justify-between mb-6;
+}
+.page-title {
+  @apply text-2xl font-bold text-text-primary;
+}
+.page-subtitle {
+  @apply text-sm text-text-secondary mt-1;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}

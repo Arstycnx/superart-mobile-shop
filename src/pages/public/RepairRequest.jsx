@@ -1,0 +1,489 @@
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    Wrench, Smartphone, Tablet, Laptop, MoreHorizontal,
+    Camera, X, ChevronLeft, ChevronRight, CheckCircle,
+    Home, DollarSign, Bell, Phone, Check, Square, CheckSquare,
+} from 'lucide-react';
+
+/* ─────────────────────────────── */
+/*  CONSTANTS                      */
+/* ─────────────────────────────── */
+const DEVICE_TYPES = [
+    { key: 'mobile', label: 'มือถือ', icon: Smartphone },
+    { key: 'tablet', label: 'แท็บเล็ต', icon: Tablet },
+    { key: 'laptop', label: 'โน้ตบุ๊ค', icon: Laptop },
+    { key: 'other', label: 'อื่นๆ', icon: MoreHorizontal },
+];
+
+const BRANDS = ['Apple', 'Samsung', 'Huawei', 'OPPO', 'Vivo', 'Xiaomi', 'อื่นๆ'];
+
+const STEPS = [
+    { num: 1, label: 'ข้อมูลส่วนตัว' },
+    { num: 2, label: 'รายละเอียด' },
+    { num: 3, label: 'ยืนยันข้อมูล' },
+];
+
+const BOTTOM_NAV = [
+    { label: 'หน้าหลัก', icon: Home },
+    { label: 'ราคาค่า', icon: DollarSign },
+    { label: 'แจ้งซ่อม', icon: Wrench, active: true },
+    { label: 'ทางร้าน', icon: Bell },
+    { label: 'โทรหาเรา', icon: Phone },
+];
+
+/* ─────────────────────────────── */
+/*  STEP INDICATOR                 */
+/* ─────────────────────────────── */
+function StepIndicator({ current }) {
+    return (
+        <div className="flex items-center justify-center gap-0 mb-8">
+            {STEPS.map((s, i) => (
+                <div key={s.num} className="flex items-center">
+                    {/* Circle */}
+                    <div className="flex flex-col items-center gap-1">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${s.num < current ? 'bg-orange-500 text-white' :
+                            s.num === current ? 'bg-orange-500 text-white ring-4 ring-orange-100' :
+                                'bg-gray-200 text-gray-400'
+                            }`}>
+                            {s.num < current ? <Check size={16} /> : s.num}
+                        </div>
+                        <span className={`text-[11px] font-medium whitespace-nowrap ${s.num <= current ? 'text-orange-500' : 'text-gray-400'
+                            }`}>{s.label}</span>
+                    </div>
+                    {/* Connector */}
+                    {i < STEPS.length - 1 && (
+                        <div className="w-12 sm:w-20 h-0.5 mb-5 mx-1 transition-all"
+                            style={{ backgroundColor: s.num < current ? '#f97316' : '#e5e7eb' }} />
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/* ─────────────────────────────── */
+/*  SUCCESS MODAL                  */
+/* ─────────────────────────────── */
+function SuccessModal({ trackingId, onTrack }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-[fadeIn_0.3s_ease]">
+                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle size={32} className="text-green-500" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">ส่งแจ้งซ่อมสำเร็จ! 🎉</h3>
+                <p className="text-sm text-slate-500 mb-4">ระบบได้รับคำร้องของคุณแล้ว ทีมงานจะติดต่อกลับภายใน 30 นาที</p>
+                <div className="py-3 px-4 rounded-xl mb-5" style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
+                    <p className="text-xs text-orange-500 mb-1 font-medium">หมายเลขติดตาม</p>
+                    <p className="text-lg font-bold font-mono text-orange-600">{trackingId}</p>
+                </div>
+                <button onClick={onTrack}
+                    className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110"
+                    style={{ backgroundColor: '#22c55e' }}>
+                    ติดตามสถานะ →
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  MAIN PAGE                                             */
+/* ═══════════════════════════════════════════════════════ */
+export default function RepairRequest() {
+    const navigate = useNavigate();
+    const fileRef = useRef();
+
+    const [step, setStep] = useState(1);
+    const [success, setSuccess] = useState(false);
+    const [agreed, setAgreed] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [photos, setPhotos] = useState([]);  // { url, name }
+
+    /* Form state */
+    const [form, setForm] = useState({
+        name: '', phone: '', lineId: '',
+        deviceType: '', brand: '', model: '',
+        symptoms: '',
+    });
+
+    const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+    const selectDevice = (k) => setForm(f => ({ ...f, deviceType: k }));
+
+    /* Photo upload */
+    const handleFiles = (files) => {
+        Array.from(files).slice(0, 4 - photos.length).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => setPhotos(p => [...p, { url: e.target.result, name: file.name }]);
+            reader.readAsDataURL(file);
+        });
+    };
+    const removePhoto = (i) => setPhotos(p => p.filter((_, idx) => idx !== i));
+
+    /* Validation */
+    const validateStep1 = () => {
+        const e = {};
+        if (!form.name.trim()) e.name = 'กรุณากรอกชื่อ-นามสกุล';
+        if (!form.phone.trim()) e.phone = 'กรุณากรอกเบอร์โทรศัพท์';
+        setErrors(e);
+        return !Object.keys(e).length;
+    };
+    const validateStep2 = () => {
+        const e = {};
+        if (!form.deviceType) e.deviceType = 'กรุณาเลือกประเภทอุปกรณ์';
+        if (!form.brand) e.brand = 'กรุณาเลือกยี่ห้อ';
+        if (!form.symptoms.trim()) e.symptoms = 'กรุณาระบุอาการเสีย';
+        setErrors(e);
+        return !Object.keys(e).length;
+    };
+
+    const nextStep = () => {
+        if (step === 1 && !validateStep1()) return;
+        if (step === 2 && !validateStep2()) return;
+        setErrors({});
+        setStep(s => s + 1);
+    };
+    const prevStep = () => { setErrors({}); setStep(s => s - 1); };
+
+    const [submitting, setSubmitting] = useState(false);
+    const [trackingId, setTrackingId] = useState('');
+
+    const handleSubmit = async () => {
+        if (!agreed) { setErrors({ agreed: 'กรุณายอมรับเงื่อนไข' }); return; }
+        setSubmitting(true);
+        try {
+            const res = await fetch('http://localhost:5000/api/repairs/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    full_name: form.name,
+                    phone: form.phone,
+                    line_id: form.lineId || null,
+                    device_type: form.deviceType || 'mobile',
+                    device_brand: form.brand,
+                    device_model: form.model || '',
+                    symptoms: form.symptoms,
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) {
+                setErrors({ agreed: data.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+                setSubmitting(false);
+                return;
+            }
+            setTrackingId(data.tracking_code);
+            setSuccess(true);
+        } catch {
+            setErrors({ agreed: 'เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่' });
+        }
+        setSubmitting(false);
+    };
+
+    /* ───── Shared field styles ───── */
+    const inputCls = (k) =>
+        `w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${errors[k]
+            ? 'border-red-400 ring-2 ring-red-100'
+            : 'border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100'
+        }`;
+
+    /* ═════════════════════════════════════════════════════ */
+    return (
+        <div className="min-h-screen bg-white flex flex-col">
+
+            {/* Main scrollable area */}
+            <div className="flex-1 flex flex-col items-center px-4 py-8 pb-24 sm:pb-8">
+                <div className="w-full max-w-[480px] md:max-w-[800px]">
+
+                    {/* ── Logo ── */}
+                    <div className="flex flex-col items-center mb-6 text-center">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-lg"
+                            style={{ backgroundColor: '#f97316' }}>
+                            <Wrench size={28} className="text-white" />
+                        </div>
+                        <p className="text-xs font-bold tracking-widest text-orange-500 uppercase">i05 SuperArt</p>
+                        <p className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">Mobile Repair Service</p>
+                    </div>
+
+                    {/* ── Heading ── */}
+                    <div className="text-center mb-6">
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">แจ้งซ่อมออนไลน์</h1>
+                        <p className="text-sm text-slate-500">กรุณากรอกข้อมูลเพื่อเริ่มขั้นตอนการแจ้งซ่อม</p>
+                    </div>
+
+                    {/* ── Step indicator ── */}
+                    <StepIndicator current={step} />
+
+                    {/* ═══ STEP 1 ═══ */}
+                    {step === 1 && (
+                        <div className="space-y-4">
+                            <h2 className="text-base font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">
+                                ขั้นตอนที่ 1: ข้อมูลส่วนตัว
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Name */}
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        ชื่อ-นามสกุล <span className="text-red-400">*</span>
+                                    </label>
+                                    <input type="text" value={form.name} onChange={set('name')}
+                                        placeholder="ชื่อ-นามสกุล" className={inputCls('name')} />
+                                    {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+                                </div>
+
+                                {/* Phone */}
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        เบอร์โทรศัพท์ <span className="text-red-400">*</span>
+                                    </label>
+                                    <input type="tel" value={form.phone} onChange={set('phone')}
+                                        placeholder="08X-XXXX-XXXX" className={inputCls('phone')} />
+                                    {errors.phone && <p className="text-xs text-red-400 mt-1">{errors.phone}</p>}
+                                </div>
+                            </div>
+
+                            {/* Line ID */}
+                            <div>
+                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                    Line ID <span className="text-slate-400 font-normal">(ไม่บังคับ)</span>
+                                </label>
+                                <input type="text" value={form.lineId} onChange={set('lineId')}
+                                    placeholder="@lineid" className={inputCls('lineId')} />
+                            </div>
+
+                            <button onClick={nextStep}
+                                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 mt-2"
+                                style={{ backgroundColor: '#111827' }}>
+                                ถัดไป <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* ═══ STEP 2 ═══ */}
+                    {step === 2 && (
+                        <div className="space-y-5">
+                            <h2 className="text-base font-bold text-slate-700 mb-2 pb-2 border-b border-slate-100">
+                                ขั้นตอนที่ 2: ข้อมูลอุปกรณ์
+                            </h2>
+
+                            {/* Device type */}
+                            <div>
+                                <label className="text-xs font-semibold text-slate-600 mb-2 block">
+                                    เลือกประเภทอุปกรณ์ <span className="text-red-400">*</span>
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {DEVICE_TYPES.map(d => {
+                                        const Icon = d.icon;
+                                        const active = form.deviceType === d.key;
+                                        return (
+                                            <button key={d.key} onClick={() => selectDevice(d.key)}
+                                                className="flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all hover:border-orange-300"
+                                                style={{
+                                                    borderColor: active ? '#f97316' : '#e5e7eb',
+                                                    backgroundColor: active ? '#fff7ed' : '#fafafa',
+                                                }}>
+                                                <Icon size={22} style={{ color: active ? '#f97316' : '#94a3b8' }} />
+                                                <span className={`text-xs font-semibold ${active ? 'text-orange-500' : 'text-slate-500'}`}>
+                                                    {d.label}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {errors.deviceType && <p className="text-xs text-red-400 mt-1">{errors.deviceType}</p>}
+                            </div>
+
+                            {/* Brand + Model */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        ยี่ห้อ (Brand) <span className="text-red-400">*</span>
+                                    </label>
+                                    <select value={form.brand} onChange={set('brand')}
+                                        className={inputCls('brand') + ' bg-white'}>
+                                        <option value="">-- เลือกยี่ห้อ --</option>
+                                        {BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                    {errors.brand && <p className="text-xs text-red-400 mt-1">{errors.brand}</p>}
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">รุ่น (Model)</label>
+                                    <input type="text" value={form.model} onChange={set('model')}
+                                        placeholder="เช่น iPhone 15 Pro Max" className={inputCls('model')} />
+                                </div>
+                            </div>
+
+                            {/* Symptoms */}
+                            <div>
+                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                    อาการเสีย <span className="text-red-400">*</span>
+                                </label>
+                                <textarea value={form.symptoms} onChange={set('symptoms')}
+                                    rows={4} placeholder="กรุณาระบุอาการเสียโดยละเอียด เช่น หน้าจอแตก, ชาร์จไม่เข้า..."
+                                    className={inputCls('symptoms') + ' resize-none'} />
+                                {errors.symptoms && <p className="text-xs text-red-400 mt-1">{errors.symptoms}</p>}
+                            </div>
+
+                            {/* Photo upload */}
+                            <div>
+                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                    รูปภาพประกอบ <span className="text-slate-400 font-normal">(สูงสุด 4 รูป)</span>
+                                </label>
+                                <div
+                                    onClick={() => fileRef.current?.click()}
+                                    onDragOver={e => e.preventDefault()}
+                                    onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+                                    className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-all">
+                                    <Camera size={24} className="text-slate-400" />
+                                    <p className="text-sm font-medium text-slate-600">ถ่ายภาพหรืออัปโหลดรูปภาพ</p>
+                                    <p className="text-xs text-slate-400">รองรับไฟล์ JPG, PNG</p>
+                                </div>
+                                <input ref={fileRef} type="file" multiple accept="image/*" className="hidden"
+                                    onChange={e => handleFiles(e.target.files)} />
+
+                                {/* Thumbnails */}
+                                {photos.length > 0 && (
+                                    <div className="flex gap-2 mt-3 flex-wrap">
+                                        {photos.map((p, i) => (
+                                            <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
+                                                <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                                                <button onClick={() => removePhoto(i)}
+                                                    className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                                    <X size={9} className="text-white" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Nav buttons */}
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={prevStep}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-slate-600 border-2 border-slate-200 hover:bg-slate-50 transition-colors">
+                                    <ChevronLeft size={16} /> ย้อนกลับ
+                                </button>
+                                <button onClick={nextStep}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110"
+                                    style={{ backgroundColor: '#f97316' }}>
+                                    ถัดไป <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ STEP 3 ═══ */}
+                    {step === 3 && (
+                        <div className="space-y-5">
+                            <h2 className="text-base font-bold text-slate-700 mb-2 pb-2 border-b border-slate-100">
+                                ขั้นตอนที่ 3: ยืนยันข้อมูล
+                            </h2>
+
+                            {/* Summary card */}
+                            <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                                    {/* Personal info */}
+                                    <div className="p-5">
+                                        <p className="text-xs font-bold text-orange-500 uppercase tracking-wider mb-3">ข้อมูลส่วนตัว</p>
+                                        {[
+                                            ['ชื่อ-นามสกุล', form.name || '-'],
+                                            ['เบอร์โทร', form.phone || '-'],
+                                            ['Line ID', form.lineId || '-'],
+                                        ].map(([k, v]) => (
+                                            <div key={k} className="flex justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
+                                                <span className="text-slate-500">{k}</span>
+                                                <span className="text-slate-800 font-medium text-right ml-2">{v}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Device info */}
+                                    <div className="p-5">
+                                        <p className="text-xs font-bold text-orange-500 uppercase tracking-wider mb-3">ข้อมูลอุปกรณ์</p>
+                                        {[
+                                            ['ประเภท', DEVICE_TYPES.find(d => d.key === form.deviceType)?.label || '-'],
+                                            ['ยี่ห้อ', form.brand || '-'],
+                                            ['รุ่น', form.model || '-'],
+                                            ['อาการเสีย', form.symptoms || '-'],
+                                        ].map(([k, v]) => (
+                                            <div key={k} className="flex justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
+                                                <span className="text-slate-500 flex-shrink-0">{k}</span>
+                                                <span className="text-slate-800 font-medium text-right ml-2 break-all">{v}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Photos */}
+                                {photos.length > 0 && (
+                                    <div className="p-5 border-t border-slate-100">
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">รูปภาพประกอบ</p>
+                                        <div className="flex gap-2 flex-wrap">
+                                            {photos.map((p, i) => (
+                                                <img key={i} src={p.url} alt="" className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Terms checkbox */}
+                            <button onClick={() => { setAgreed(!agreed); setErrors({}); }}
+                                className="flex items-start gap-3 text-left">
+                                {agreed
+                                    ? <CheckSquare size={20} className="text-orange-500 flex-shrink-0 mt-0.5" />
+                                    : <Square size={20} className="text-slate-400 flex-shrink-0 mt-0.5" />
+                                }
+                                <span className="text-sm text-slate-600">
+                                    ยอมรับ<span className="text-orange-500 underline ml-1">เงื่อนไขการใช้บริการ</span>
+                                </span>
+                            </button>
+                            {errors.agreed && <p className="text-xs text-red-400 -mt-2">{errors.agreed}</p>}
+
+                            {/* Nav buttons */}
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={prevStep}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-slate-600 border-2 border-slate-200 hover:bg-slate-50 transition-colors">
+                                    <ChevronLeft size={16} /> ย้อนกลับ
+                                </button>
+                                <button onClick={handleSubmit} disabled={submitting}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
+                                    style={{ backgroundColor: '#22c55e' }}>
+                                    <CheckCircle size={16} /> {submitting ? 'กำลังส่ง...' : 'ส่งแจ้งซ่อม'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Footer ── */}
+            <footer className="text-center py-4 border-t border-slate-100 hidden sm:block">
+                <p className="text-xs text-slate-400 tracking-wide">© 2024 SUPERART MOBILE REPAIR CENTER</p>
+            </footer>
+
+            {/* ── Mobile bottom nav (≤ md) ── */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex sm:hidden z-30">
+                {BOTTOM_NAV.map(item => {
+                    const Icon = item.icon;
+                    return (
+                        <button key={item.label}
+                            className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors ${item.active ? 'text-orange-500' : 'text-slate-400'
+                                }`}>
+                            <Icon size={19} />
+                            {item.label}
+                        </button>
+                    );
+                })}
+            </nav>
+
+            {/* ── Success modal ── */}
+            {success && (
+                <SuccessModal
+                    trackingId={trackingId}
+                    onTrack={() => navigate('/track')}
+                />
+            )}
+        </div>
+    );
+}
