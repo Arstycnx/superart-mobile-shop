@@ -488,13 +488,15 @@ function Stepper({ step }) {
 }
 
 /* ─── Expanded Card ────────────────────────────────────── */
-function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast }) {
+function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotify }) {
     const fileRef = useRef();
     const [updating, setUpdating] = useState(false);
+    const [notifying, setNotifying] = useState(false);
     const step = STATUS_STEP[order.status] ?? 0;
     const parts = order.parts || [];
     const timeline = order.timeline || [];
     const total = parts.reduce((s, p) => s + Number(p.subtotal || 0), 0);
+    const hasLineId = Boolean(order.line_user_id);
 
     const doStatusUpdate = async (status) => {
         setUpdating(true);
@@ -504,8 +506,14 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast }) {
             });
             const data = await res.json();
             if (data.success) {
-                onShowToast(status === 'cancelled' ? 'ยกเลิกการซ่อมแล้ว' : 'อัปเดตสถานะสำเร็จ',
-                    status === 'cancelled' ? 'error' : 'success');
+                onShowToast(
+                    status === 'cancelled' ? 'ยกเลิกการซ่อมแล้ว' : 'อัปเดตสถานะสำเร็จ',
+                    status === 'cancelled' ? 'error' : 'success'
+                );
+                // Auto-fire LINE notification after status change
+                if (hasLineId) {
+                    onNotify(order.id, /* silent */ true);
+                }
                 onStatusUpdated();
             } else {
                 onShowToast('เกิดข้อผิดพลาด', 'error');
@@ -514,6 +522,12 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast }) {
             onShowToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
         }
         setUpdating(false);
+    };
+
+    const handleNotify = async () => {
+        setNotifying(true);
+        await onNotify(order.id, /* silent */ false);
+        setNotifying(false);
     };
 
     return (
@@ -595,9 +609,21 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast }) {
                             </div>
 
                             <div className="flex gap-2">
-                                <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/5 transition-colors"
-                                    style={{ border: '1px solid #374151' }}>
-                                    <MessageSquare size={13} />แจ้งลูกค้า
+                                <button
+                                    onClick={handleNotify}
+                                    disabled={!hasLineId || notifying}
+                                    title={hasLineId ? 'ส่งแจ้งเตือนผ่าน LINE' : 'ลูกค้าไม่มี LINE User ID'}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+                                    style={{
+                                        border: hasLineId ? '1px solid rgba(52,211,153,0.5)' : '1px solid #374151',
+                                        color: hasLineId ? '#34d399' : '#4b5563',
+                                        opacity: (!hasLineId || notifying) ? 0.5 : 1,
+                                        cursor: (!hasLineId || notifying) ? 'not-allowed' : 'pointer',
+                                        backgroundColor: hasLineId ? 'rgba(52,211,153,0.08)' : 'transparent',
+                                    }}
+                                >
+                                    <MessageSquare size={13} />
+                                    {notifying ? 'กำลังส่ง...' : 'แจ้งลูกค้า'}
                                 </button>
                                 <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/5 transition-colors"
                                     style={{ border: '1px solid #374151' }}>
@@ -707,9 +733,10 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast }) {
 }
 
 /* ─── Collapsed Card ───────────────────────────────────── */
-function CollapsedCard({ order, onExpand }) {
+function CollapsedCard({ order, onExpand, onNotify }) {
     const step = STATUS_STEP[order.status] ?? 0;
     const pct = Math.round((step / (STEPS.length - 1)) * 100);
+    const hasLineId = Boolean(order.line_user_id);
     return (
         <div className="rounded-2xl border p-4 hover:border-blue-500/40 transition-all cursor-pointer"
             style={{ backgroundColor: '#111827', borderColor: '#1e293b' }} onClick={onExpand}>
@@ -748,10 +775,18 @@ function CollapsedCard({ order, onExpand }) {
                         <p className="text-base font-bold text-white">{thb(order.estimated_cost)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-                            style={{ border: '1px solid #1e293b' }}
-                            onClick={e => e.stopPropagation()}>
-                            <MessageSquare size={14} className="text-slate-400" />
+                        <button
+                            title={hasLineId ? 'ส่งแจ้งเตือนผ่าน LINE' : 'ลูกค้าไม่มี LINE User ID'}
+                            disabled={!hasLineId}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{
+                                border: hasLineId ? '1px solid rgba(52,211,153,0.4)' : '1px solid #1e293b',
+                                cursor: hasLineId ? 'pointer' : 'not-allowed',
+                                opacity: hasLineId ? 1 : 0.4,
+                            }}
+                            onClick={(e) => { e.stopPropagation(); if (hasLineId) onNotify(order.id, false); }}
+                        >
+                            <MessageSquare size={14} style={{ color: hasLineId ? '#34d399' : '#475569' }} />
                         </button>
                         <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-blue-400 font-semibold hover:bg-blue-500/10 transition-colors"
                             style={{ border: '1px solid rgba(96,165,250,0.3)' }}
@@ -770,7 +805,7 @@ function CollapsedCard({ order, onExpand }) {
 }
 
 /* ─── Expanded Card Wrapper (fetches full detail) ────────── */
-function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatusUpdated, onShowToast }) {
+function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatusUpdated, onShowToast, onNotify }) {
     const [order, setOrder] = useState(initialOrder);
 
     const loadDetail = useCallback(() => {
@@ -787,6 +822,7 @@ function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatu
             order={order}
             onCollapse={onCollapse}
             onShowToast={onShowToast}
+            onNotify={onNotify}
             onStatusUpdated={() => { onStatusUpdated(); loadDetail(); }}
         />
     );
@@ -809,6 +845,24 @@ export default function RepairOrders() {
     const showToast = useCallback((message, type = 'success') => {
         setToast({ message, type });
     }, []);
+
+    // ── LINE Notify ───────────────────────────────────────────
+    // silent=true skips success toast (used when called automatically after status change)
+    const notifyOrder = useCallback(async (orderId, silent = false) => {
+        try {
+            const res = await fetch(`${API}/${orderId}/notify`, {
+                method: 'POST', headers: getAuthHeader(),
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (!silent) showToast('\u0e2a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19\u0e1c\u0e48\u0e32\u0e19 LINE \u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27 \ud83c\udf89', 'success');
+            } else {
+                if (!silent) showToast(data.message || '\u0e2a\u0e48\u0e07 LINE \u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08', 'error');
+            }
+        } catch {
+            if (!silent) showToast('\u0e44\u0e21\u0e48\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e40\u0e0b\u0e34\u0e23\u0e4c\u0e1f\u0e40\u0e27\u0e2d\u0e23\u0e4c', 'error');
+        }
+    }, [showToast]);
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -920,8 +974,9 @@ export default function RepairOrders() {
                                 onCollapse={() => setExpandedId(null)}
                                 onStatusUpdated={fetchOrders}
                                 onShowToast={showToast}
+                                onNotify={notifyOrder}
                             />
-                            : <CollapsedCard key={order.id} order={order} onExpand={() => setExpandedId(order.id)} />
+                            : <CollapsedCard key={order.id} order={order} onExpand={() => setExpandedId(order.id)} onNotify={notifyOrder} />
                     ))}
                     {!loading && orders.length === 0 && (
                         <div className="text-center py-16 text-slate-500 text-sm">ไม่พบรายการที่ค้นหา</div>

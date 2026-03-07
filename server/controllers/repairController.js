@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { sendRepairStatusUpdate } = require('../services/lineService');
 
 // ─── Helper: auto-generate order_code ─────────────────────
 const generateOrderCode = async () => {
@@ -45,6 +46,7 @@ const getAll = async (req, res) => {
               c.full_name AS customer_name,
               c.phone AS customer_phone,
               c.customer_code,
+              c.line_user_id,
               (SELECT COUNT(*) FROM payments p WHERE p.repair_order_id = ro.id AND p.status = 'paid') AS is_paid
        FROM repair_orders ro
        LEFT JOIN customers c ON ro.customer_id = c.id
@@ -100,7 +102,7 @@ const getById = async (req, res) => {
             `SELECT ro.*,
               c.full_name AS customer_name,
               c.phone AS customer_phone,
-              c.customer_code, c.line_id
+              c.customer_code, c.line_id, c.line_user_id
        FROM repair_orders ro
        LEFT JOIN customers c ON ro.customer_id = c.id
        WHERE ro.id = ? LIMIT 1`,
@@ -111,7 +113,7 @@ const getById = async (req, res) => {
         const order = rows[0];
 
         const [parts] = await pool.query(
-            `SELECT rp.*, p.product_name, p.product_code
+            `SELECT rp.*, p.name AS product_name, p.product_code
        FROM repair_parts rp
        LEFT JOIN products p ON rp.product_id = p.id
        WHERE rp.repair_order_id = ?`,
@@ -128,6 +130,7 @@ const getById = async (req, res) => {
             [order.id]
         );
 
+        console.log(`[getById] order #${order.id} line_user_id=${order.line_user_id ?? 'NULL'}`);
         res.json({ success: true, data: { ...order, parts, timeline, payments } });
     } catch (err) {
         console.error('[repairs.getById]', err);
@@ -221,13 +224,56 @@ const updateStatus = async (req, res) => {
         await conn.commit(); conn.release();
 
         const [rows] = await pool.query(
-            'SELECT ro.*, c.full_name AS customer_name FROM repair_orders ro LEFT JOIN customers c ON ro.customer_id = c.id WHERE ro.id = ?',
+            `SELECT ro.*, c.full_name AS customer_name,
+              c.line_user_id
+             FROM repair_orders ro
+             LEFT JOIN customers c ON ro.customer_id = c.id
+             WHERE ro.id = ?`,
             [req.params.id]
         );
-        res.json({ success: true, data: rows[0] });
+        const updatedOrder = rows[0];
+
+        // ── LINE Notification (non-blocking) ─────────────────────
+        // sendRepairStatusUpdate is fired-and-forgotten: if LINE fails
+        // the API still returns 200 OK to the frontend.
+        sendRepairStatusUpdate(
+            { line_user_id: updatedOrder.line_user_id },
+            updatedOrder
+        ).catch((err) => console.error('[LINE] non-blocking error:', err.message));
+
+        res.json({ success: true, data: updatedOrder });
     } catch (err) {
         await conn.rollback(); conn.release();
         console.error('[repairs.updateStatus]', err);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
+// ─── POST /api/repairs/:id/notify (protected) ────────────
+// Manual trigger: re-send LINE notification for the current status
+const notifyCustomer = async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT ro.*, c.full_name AS customer_name,
+              c.line_user_id
+             FROM repair_orders ro
+             LEFT JOIN customers c ON ro.customer_id = c.id
+             WHERE ro.id = ? LIMIT 1`,
+            [req.params.id]
+        );
+        if (rows.length === 0)
+            return res.status(404).json({ success: false, message: 'ไม่พบรายการซ่อม' });
+
+        const order = rows[0];
+
+        if (!order.line_user_id)
+            return res.status(400).json({ success: false, message: 'ลูกค้าไม่มี LINE User ID' });
+
+        await sendRepairStatusUpdate({ line_user_id: order.line_user_id }, order);
+
+        res.json({ success: true, message: 'ส่งข้อความแจ้งเตือนผ่าน LINE เรียบร้อยแล้ว' });
+    } catch (err) {
+        console.error('[repairs.notifyCustomer]', err);
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
     }
 };
@@ -330,4 +376,4 @@ const createRequest = async (req, res) => {
     }
 };
 
-module.exports = { getAll, getById, trackRepair, create, updateStatus, addParts, createRequest };
+module.exports = { getAll, getById, trackRepair, create, updateStatus, addParts, createRequest, notifyCustomer };

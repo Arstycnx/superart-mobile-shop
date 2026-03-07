@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Search, Plus, X, Phone, MessageSquare, ChevronLeft, ChevronRight,
-    Star, RefreshCw, Wrench, CreditCard, User,
+    Star, RefreshCw, Wrench, CreditCard, User, Pencil, Trash2,
 } from 'lucide-react';
 
 const API = 'http://localhost:5000/api/customers';
@@ -238,11 +238,25 @@ function CustomerDrawer({ customer, idx, onClose }) {
     );
 }
 
-/* ── Add Customer Modal ─────────────────────────────────── */
-const emptyForm = { full_name: '', phone: '', email: '', line_id: '' };
+/* ── Customer Form Modal (Add + Edit) ───────────────────── */
+const emptyForm = { full_name: '', phone: '', email: '', line_id: '', line_user_id: '' };
 
-function AddCustomerModal({ onClose, onSaved }) {
-    const [form, setForm] = useState(emptyForm);
+/**
+ * @param {object|null} editing  – null = add mode, customer object = edit mode
+ */
+function CustomerFormModal({ editing, onClose, onSaved }) {
+    const isEdit = Boolean(editing);
+    const [form, setForm] = useState(
+        isEdit
+            ? {
+                full_name: editing.full_name || '',
+                phone: editing.phone || '',
+                email: editing.email || '',
+                line_id: editing.line_id || '',
+                line_user_id: editing.line_user_id || '',
+            }
+            : emptyForm
+    );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -252,7 +266,9 @@ function AddCustomerModal({ onClose, onSaved }) {
         if (!form.full_name || !form.phone) { setError('กรุณากรอกชื่อและเบอร์โทร'); return; }
         setSaving(true); setError('');
         try {
-            const res = await fetch(API, { method: 'POST', headers: getAuthHeader(), body: JSON.stringify(form) });
+            const url = isEdit ? `${API}/${editing.id}` : API;
+            const method = isEdit ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers: getAuthHeader(), body: JSON.stringify(form) });
             const data = await res.json();
             if (!data.success) { setError(data.message || 'เกิดข้อผิดพลาด'); return; }
             onSaved();
@@ -267,7 +283,9 @@ function AddCustomerModal({ onClose, onSaved }) {
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                        <h3 className="font-semibold text-slate-800">เพิ่มลูกค้าใหม่</h3>
+                        <h3 className="font-semibold text-slate-800">
+                            {isEdit ? 'แก้ไขข้อมูลลูกค้า' : 'เพิ่มลูกค้าใหม่'}
+                        </h3>
                         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X size={16} /></button>
                     </div>
                     <div className="p-6 space-y-4">
@@ -294,10 +312,24 @@ function AddCustomerModal({ onClose, onSaved }) {
                                     className="input-field" placeholder="@lineid" />
                             </div>
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                LINE User ID <span className="text-[11px] text-slate-400 font-normal">(API · ขึ้นต้นด้วย U)</span>
+                            </label>
+                            <input
+                                name="line_user_id"
+                                value={form.line_user_id}
+                                onChange={handleField}
+                                className="input-field font-mono text-sm"
+                                placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                maxLength={33}
+                            />
+                            <p className="mt-1 text-[11px] text-slate-400">ใช้สำหรับส่ง Push Message โดยตรง (33 ตัวอักษร)</p>
+                        </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button onClick={onClose} className="btn-secondary">ยกเลิก</button>
                             <button onClick={handleSave} disabled={saving} className="btn-primary">
-                                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+                                {saving ? 'กำลังบันทึก...' : isEdit ? 'บันทึกการแก้ไข' : 'บันทึก'}
                             </button>
                         </div>
                     </div>
@@ -317,8 +349,8 @@ export default function Customers() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
-    const [selected, setSelected] = useState(null);   // { customer, idx }
-    const [addOpen, setAddOpen] = useState(false);
+    const [selected, setSelected] = useState(null);      // { customer, idx } – side drawer
+    const [formModal, setFormModal] = useState(null);    // null | 'add' | customer-object (edit)
     const PER_PAGE = 10;
 
     // ── Fetch ─────────────────────────────────────────────
@@ -341,12 +373,36 @@ export default function Customers() {
         return () => clearTimeout(t);
     }, [fetchCustomers]);
 
-    // Close drawer on Escape
+    // Close drawer / modal on Escape
     useEffect(() => {
-        const h = (e) => { if (e.key === 'Escape') setSelected(null); };
+        const h = (e) => {
+            if (e.key === 'Escape') {
+                setSelected(null);
+                setFormModal(null);
+            }
+        };
         window.addEventListener('keydown', h);
         return () => window.removeEventListener('keydown', h);
     }, []);
+
+    // ── Edit ──────────────────────────────────────────────
+    const handleEdit = (customer, e) => {
+        e.stopPropagation();            // don't open the side drawer
+        setFormModal(customer);         // editing = customer object → PUT mode
+    };
+
+    // ── Delete ────────────────────────────────────────────
+    const handleDelete = async (id, e) => {
+        e.stopPropagation();
+        if (!window.confirm('ยืนยันการลบข้อมูลลูกค้าท่านนี้?')) return;
+        try {
+            const res = await fetch(`${API}/${id}`, { method: 'DELETE', headers: getAuthHeader() });
+            const data = await res.json();
+            if (!data.success) { alert(data.message || 'ลบไม่สำเร็จ'); return; }
+            if (selected?.customer?.id === id) setSelected(null);
+            fetchCustomers();
+        } catch { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
+    };
 
     // ── Pagination pages ──────────────────────────────────
     const pageNums = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -375,7 +431,7 @@ export default function Customers() {
                     <button onClick={fetchCustomers} className="btn-secondary" title="รีเฟรช">
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                     </button>
-                    <button onClick={() => setAddOpen(true)}
+                    <button onClick={() => setFormModal('add')}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0 transition-all hover:brightness-110"
                         style={{ backgroundColor: '#3b82f6' }}>
                         <Plus size={15} />เพิ่มลูกค้า
@@ -389,7 +445,7 @@ export default function Customers() {
                     <table className="w-full">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
-                                {['ชื่อลูกค้า', 'เบอร์โทรศัพท์', 'จำนวนครั้งใช้บริการ', 'ระดับสมาชิก', 'ยอดใช้จ่ายรวม', ''].map(h => (
+                                {['ชื่อลูกค้า', 'เบอร์โทรศัพท์', 'จำนวนครั้งใช้บริการ', 'ระดับสมาชิก', 'ยอดใช้จ่ายรวม', 'จัดการ'].map(h => (
                                     <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
@@ -429,8 +485,23 @@ export default function Customers() {
                                         <td className="px-5 py-4">
                                             <span className="text-sm font-bold text-slate-800">{thb(c.total_spent)}</span>
                                         </td>
-                                        <td className="px-5 py-4">
-                                            <User size={15} className="text-slate-300" />
+                                        <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    title="แก้ไข"
+                                                    onClick={(e) => handleEdit(c, e)}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                                <button
+                                                    title="ลบ"
+                                                    onClick={(e) => handleDelete(c.id, e)}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -475,10 +546,11 @@ export default function Customers() {
                 />
             )}
 
-            {/* Add Customer Modal */}
-            {addOpen && (
-                <AddCustomerModal
-                    onClose={() => setAddOpen(false)}
+            {/* Add / Edit Customer Modal */}
+            {formModal && (
+                <CustomerFormModal
+                    editing={formModal === 'add' ? null : formModal}
+                    onClose={() => setFormModal(null)}
                     onSaved={fetchCustomers}
                 />
             )}

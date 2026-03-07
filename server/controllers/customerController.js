@@ -16,7 +16,7 @@ const getAll = async (req, res) => {
         const { search = '', page = 1, limit = 10 } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
-        let where = ['1=1'];
+        let where = ['is_deleted = 0'];
         const params = [];
         if (search) {
             where.push('(full_name LIKE ? OR phone LIKE ? OR customer_code LIKE ?)');
@@ -42,7 +42,10 @@ const getAll = async (req, res) => {
 // ─── GET /api/customers/:id ────────────────────────────────
 const getById = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM customers WHERE id = ? LIMIT 1', [req.params.id]);
+        const [rows] = await pool.query(
+            'SELECT * FROM customers WHERE id = ? AND is_deleted = 0 LIMIT 1',
+            [req.params.id]
+        );
         if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
         res.json({ success: true, data: rows[0] });
     } catch (err) {
@@ -52,20 +55,52 @@ const getById = async (req, res) => {
 };
 
 // ─── GET /api/customers/:id/repairs ───────────────────────
+// Note: JSON_ARRAYAGG is not available on MariaDB 10.4, so we use
+// two separate queries and assemble the timeline in JavaScript.
 const getRepairs = async (req, res) => {
     try {
+        // 1. Fetch repair orders for this customer
         const [repairs] = await pool.query(
-            `SELECT ro.*,
-              (SELECT JSON_ARRAYAGG(
-                JSON_OBJECT('status', rt.status, 'description', rt.description,
-                            'updated_by', rt.updated_by, 'created_at', rt.created_at)
-              ) FROM repair_timeline rt WHERE rt.repair_order_id = ro.id) AS timeline
-       FROM repair_orders ro
-       WHERE ro.customer_id = ?
-       ORDER BY ro.received_date DESC`,
+            `SELECT * FROM repair_orders
+             WHERE customer_id = ?
+             ORDER BY received_date DESC`,
             [req.params.id]
         );
-        res.json({ success: true, data: repairs, total: repairs.length });
+
+        if (repairs.length === 0) {
+            return res.json({ success: true, data: [], total: 0 });
+        }
+
+        // 2. Fetch all timeline rows for those orders in one query
+        const repairIds = repairs.map((r) => r.id);
+        const [timelineRows] = await pool.query(
+            `SELECT * FROM repair_timeline
+             WHERE repair_order_id IN (?)
+             ORDER BY created_at ASC`,
+            [repairIds]
+        );
+
+        // 3. Group timeline rows by repair_order_id in JS
+        const timelineMap = {};
+        for (const row of timelineRows) {
+            if (!timelineMap[row.repair_order_id]) {
+                timelineMap[row.repair_order_id] = [];
+            }
+            timelineMap[row.repair_order_id].push({
+                status: row.status,
+                description: row.description,
+                updated_by: row.updated_by,
+                created_at: row.created_at,
+            });
+        }
+
+        // 4. Attach timeline arrays to each repair order
+        const data = repairs.map((r) => ({
+            ...r,
+            timeline: timelineMap[r.id] || [],
+        }));
+
+        res.json({ success: true, data, total: data.length });
     } catch (err) {
         console.error('[customers.getRepairs]', err);
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
@@ -93,14 +128,14 @@ const getPayments = async (req, res) => {
 // ─── POST /api/customers ───────────────────────────────────
 const create = async (req, res) => {
     try {
-        const { full_name, phone, email = null, line_id = null, address = null } = req.body;
+        const { full_name, phone, email = null, line_id = null, line_user_id = null, address = null } = req.body;
         if (!full_name || !phone) {
             return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อและเบอร์โทร' });
         }
         const customer_code = await generateCode();
         const [result] = await pool.query(
-            'INSERT INTO customers (customer_code, full_name, phone, email, line_id) VALUES (?, ?, ?, ?, ?)',
-            [customer_code, full_name, phone, email, line_id]
+            'INSERT INTO customers (customer_code, full_name, phone, email, line_id, line_user_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [customer_code, full_name, phone, email, line_id, line_user_id]
         );
         const [rows] = await pool.query('SELECT * FROM customers WHERE id = ?', [result.insertId]);
         res.status(201).json({ success: true, data: rows[0] });
@@ -113,17 +148,18 @@ const create = async (req, res) => {
 // ─── PUT /api/customers/:id ────────────────────────────────
 const update = async (req, res) => {
     try {
-        const { full_name, phone, email, line_id, member_level } = req.body;
+        const { full_name, phone, email, line_id, line_user_id, member_level } = req.body;
         const [existing] = await pool.query('SELECT * FROM customers WHERE id = ? LIMIT 1', [req.params.id]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
         const cur = existing[0];
         await pool.query(
-            `UPDATE customers SET full_name=?, phone=?, email=?, line_id=?, member_level=? WHERE id=?`,
+            `UPDATE customers SET full_name=?, phone=?, email=?, line_id=?, line_user_id=?, member_level=? WHERE id=?`,
             [
                 full_name ?? cur.full_name,
                 phone ?? cur.phone,
                 email ?? cur.email,
                 line_id ?? cur.line_id,
+                line_user_id !== undefined ? line_user_id : cur.line_user_id,
                 member_level ?? cur.member_level,
                 req.params.id,
             ]
@@ -136,11 +172,15 @@ const update = async (req, res) => {
     }
 };
 
-// ─── DELETE /api/customers/:id ─────────────────────────────
+// ─── DELETE /api/customers/:id (soft delete) ───────────────
 const remove = async (req, res) => {
     try {
-        const [result] = await pool.query('DELETE FROM customers WHERE id = ?', [req.params.id]);
-        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
+        const [result] = await pool.query(
+            'UPDATE customers SET is_deleted = 1 WHERE id = ? AND is_deleted = 0',
+            [req.params.id]
+        );
+        if (result.affectedRows === 0)
+            return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
         res.json({ success: true, message: 'ลบลูกค้าเรียบร้อยแล้ว' });
     } catch (err) {
         console.error('[customers.remove]', err);
