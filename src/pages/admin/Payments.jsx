@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import {
     Search, Plus, X, CheckSquare, Square, Eye,
     ChevronDown, Download, Shield, RefreshCw, AlertCircle,
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 /* ─── API ──────────────────────────────────────────────── */
-const API = 'http://localhost:5000/api/payments';
+const API = `${API_URL}/api/payments`;
 const getAuthHeader = () => ({
     'Content-Type': 'application/json',
     Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -93,7 +97,7 @@ function SlipMockup({ payment }) {
 }
 
 /* ─── Create Payment Modal ─────────────────────────────── */
-const REPAIRS_API = 'http://localhost:5000/api/repairs';
+const REPAIRS_API = `${API_URL}/api/repairs`;
 const METHOD_OPTS = [
     { key: 'cash', label: 'เงินสด', icon: '💵' },
     { key: 'transfer', label: 'โอนเงิน', icon: '🏦' },
@@ -146,7 +150,7 @@ function CreatePaymentModal({ onClose, onCreated }) {
         if (!amount || Number(amount) <= 0) { setError('กรุณาระบุยอดเงิน'); return; }
         setSaving(true); setError('');
         try {
-            const res = await fetch('http://localhost:5000/api/payments', {
+            const res = await fetch(`${API_URL}/api/payments`, {
                 method: 'POST', headers: getAuthHeader(),
                 body: JSON.stringify({
                     repair_order_id: selected.id,
@@ -396,7 +400,7 @@ function VerifyModal({ payment, onClose, onDone }) {
                         <p className="text-xs text-slate-500 mb-3 font-medium uppercase tracking-wider">สลิปการชำระเงิน</p>
                         <div className="flex-1 rounded-xl overflow-hidden" style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}>
                             {payment.payment_slip_url
-                                ? <img src={`http://localhost:5000${payment.payment_slip_url}`} alt="slip"
+                                ? <img src={`${API_URL}${payment.payment_slip_url}`} alt="slip"
                                     className="w-full h-full object-contain" />
                                 : <SlipMockup payment={payment} />
                             }
@@ -453,10 +457,63 @@ export default function Payments() {
     const [statusCounts, setStatusCounts] = useState({});
     const [summary, setSummary] = useState({ total_paid: 0, total_pending: 0, count_paid: 0, count_pending: 0 });
     const [loading, setLoading] = useState(true);
+    const [filterDate, setFilterDate] = useState('');
     const [verifyTarget, setVerifyTarget] = useState(null);
     const [showCreate, setShowCreate] = useState(false);
     const [toast, setToast] = useState(null);
     const [total, setTotal] = useState(0);
+    const [downloadingId, setDownloadingId] = useState(null);
+    const [receiptData, setReceiptData] = useState(null);
+
+    const handleDownloadReceipt = async (payment) => {
+        setDownloadingId(payment.id);
+        setReceiptData(payment);
+        
+        // Wait for React to render the hidden receipt with the new data
+        setTimeout(async () => {
+            const element = document.getElementById('hidden-receipt-print');
+            if (element) {
+                try {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.position = 'absolute';
+                    wrapper.style.left = '0';
+                    wrapper.style.top = '0';
+                    wrapper.style.zIndex = '-1000';
+                    wrapper.style.opacity = '1';
+                    wrapper.style.pointerEvents = 'none';
+                    
+                    const clone = element.cloneNode(true);
+                    clone.style.display = 'block';
+                    wrapper.appendChild(clone);
+                    document.body.appendChild(wrapper);
+                    
+                    await new Promise(r => setTimeout(r, 200));
+                    
+                    const canvas = await html2canvas(clone, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        windowWidth: 794
+                    });
+                    
+                    document.body.removeChild(wrapper);
+                    
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`ใบเสร็จรับเงิน_${payment.receipt_code}.pdf`);
+                } catch (err) {
+                    console.error('PDF Export Error:', err);
+                    showToast('เกิดข้อผิดพลาดในการโหลดใบเสร็จ', 'error');
+                }
+            }
+            setDownloadingId(null);
+        }, 100);
+    };
 
     /* ── Fetch payments ── */
     const fetchPayments = useCallback(async () => {
@@ -465,6 +522,7 @@ export default function Payments() {
             const params = new URLSearchParams({ limit: 50 });
             if (activeTab !== 'all') params.set('status', activeTab);
             if (search) params.set('search', search);
+            if (filterDate) params.set('date', filterDate);
 
             const res = await fetch(`${API}?${params}`, { headers: getAuthHeader() });
             const data = await res.json();
@@ -477,16 +535,18 @@ export default function Payments() {
             console.error(err);
         }
         setLoading(false);
-    }, [activeTab, search]);
+    }, [activeTab, search, filterDate]);
 
     /* ── Fetch summary ── */
     const fetchSummary = useCallback(async () => {
         try {
-            const res = await fetch(`${API}/summary`, { headers: getAuthHeader() });
+            const params = new URLSearchParams();
+            if (filterDate) params.set('date', filterDate);
+            const res = await fetch(`${API}/summary?${params}`, { headers: getAuthHeader() });
             const data = await res.json();
             if (data.success) setSummary(data.data);
         } catch { }
-    }, []);
+    }, [filterDate]);
 
     useEffect(() => { fetchPayments(); }, [fetchPayments]);
     useEffect(() => { fetchSummary(); }, [fetchSummary]);
@@ -583,10 +643,23 @@ export default function Payments() {
                                 className="pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 rounded-xl w-44 outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
                                 style={{ backgroundColor: '#111827', border: '1px solid #1e3a5f' }} />
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-400"
-                            style={{ backgroundColor: '#111827', border: '1px solid #1e3a5f' }}>
-                            <span>📅</span>
-                            <ChevronDown size={13} />
+                        <div className="relative">
+                            <input 
+                                type="date" 
+                                value={filterDate}
+                                onChange={e => setFilterDate(e.target.value)}
+                                className="px-3 py-2 text-sm text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-500/30 transition-all cursor-pointer"
+                                style={{ backgroundColor: '#111827', border: '1px solid #1e3a5f', colorScheme: 'dark' }}
+                            />
+                            {/* Option to clear date if selected */}
+                            {filterDate && (
+                                <button 
+                                    onClick={() => setFilterDate('')}
+                                    className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-700/50 text-slate-400"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -668,8 +741,16 @@ export default function Payments() {
                                                     </button>
                                                 )}
                                                 {p.status === 'paid' && (
-                                                    <button className="p-1.5 rounded-lg hover:bg-white/5 transition-colors" title="ดาวน์โหลดใบเสร็จ">
-                                                        <Download size={14} className="text-slate-400" />
+                                                    <button 
+                                                        onClick={() => handleDownloadReceipt(p)}
+                                                        disabled={downloadingId === p.id}
+                                                        className="p-1.5 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50" 
+                                                        title="ดาวน์โหลดใบเสร็จ">
+                                                        {downloadingId === p.id ? (
+                                                            <RefreshCw size={14} className="text-blue-400 animate-spin" />
+                                                        ) : (
+                                                            <Download size={14} className="text-slate-400" />
+                                                        )}
                                                     </button>
                                                 )}
                                                 {(p.status === 'cancelled' || p.status === 'overdue') && (
@@ -712,6 +793,101 @@ export default function Payments() {
                     onDone={handleVerifyDone}
                 />
             )}
+
+            {/* ── Hidden Formal Receipt for PDF Export ── */}
+            <div id="hidden-receipt-print" style={{ display: 'none', width: '794px', minHeight: '1123px', backgroundColor: '#ffffff', padding: '50px', color: '#1e293b', fontFamily: 'sans-serif' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #3b82f6', paddingBottom: '20px', marginBottom: '30px' }}>
+                    <div>
+                        <h1 style={{ fontSize: '28px', fontWeight: '900', color: '#2563eb', margin: '0 0 5px 0', letterSpacing: '-0.5px' }}>SuperArt</h1>
+                        <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 10px 0', fontWeight: '500' }}>Mobile Repair Shop</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 5px 0' }}>39 ถนนชมดอย ตำบลสุเทพ</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50200</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 10px 0' }}>ใบเสร็จรับเงิน</h2>
+                        <table style={{ fontSize: '12px', color: '#64748b', display: 'inline-block', textAlign: 'left' }}>
+                            <tbody>
+                                <tr><td style={{ paddingRight: '15px', paddingBottom: '3px', fontWeight: '600' }}>เลขที่ใบเสร็จ:</td><td style={{ color: '#2563eb', fontWeight: 'bold' }}>{receiptData?.receipt_code}</td></tr>
+                                <tr><td style={{ paddingRight: '15px', paddingBottom: '3px', fontWeight: '600' }}>วันที่:</td><td>{fmtDate(receiptData?.payment_date)}</td></tr>
+                                <tr><td style={{ paddingRight: '15px', fontWeight: '600' }}>อ้างอิงใบงาน:</td><td style={{ color: '#0f172a' }}>{receiptData?.order_code}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', marginBottom: '40px' }}>
+                    <div style={{ flex: 1, paddingRight: '20px' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>ได้รับเงินจาก</h3>
+                        <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 5px 0' }}>คุณ {receiptData?.customer_name}</p>
+                        <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>เบอร์โทร: {receiptData?.customer_phone}</p>
+                    </div>
+                    <div style={{ flex: 1, paddingLeft: '20px', borderLeft: '1px solid #e2e8f0' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>รายละเอียดอุปกรณ์</h3>
+                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a', margin: '0 0 5px 0' }}>{receiptData?.device_brand} {receiptData?.device_model}</p>
+                        <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>ประเภท: {typeMap[receiptData?.payment_type] || receiptData?.payment_type}</p>
+                    </div>
+                </div>
+
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid #cbd5e1' }}>
+                            <th style={{ textAlign: 'left', padding: '12px 0', fontSize: '13px', color: '#64748b' }}>รายการ</th>
+                            <th style={{ textAlign: 'right', padding: '12px 0', fontSize: '13px', color: '#64748b', width: '150px' }}>จำนวนเงิน</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style={{ padding: '16px 0', fontSize: '15px', color: '#0f172a', fontWeight: '500', borderBottom: '1px solid #e2e8f0' }}>
+                                ชำระค่าบริการ/อะไหล่ ({typeMap[receiptData?.payment_type] || receiptData?.payment_type})
+                            </td>
+                            <td style={{ padding: '16px 0', fontSize: '15px', color: '#0f172a', textAlign: 'right', fontWeight: '500', borderBottom: '1px solid #e2e8f0' }}>
+                                {thb(receiptData?.amount)}
+                            </td>
+                        </tr>
+                        {receiptData?.discount > 0 && (
+                            <tr>
+                                <td style={{ padding: '16px 0', fontSize: '14px', color: '#ef4444', borderBottom: '1px solid #e2e8f0' }}>ส่วนลด</td>
+                                <td style={{ padding: '16px 0', fontSize: '14px', color: '#ef4444', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>
+                                    -{thb(receiptData?.discount)}
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '50px' }}>
+                    <div style={{ width: '300px', backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                            <span style={{ fontSize: '14px', color: '#64748b' }}>รวมเป็นเงิน</span>
+                            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{thb(receiptData?.amount)}</span>
+                        </div>
+                        {receiptData?.discount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                <span style={{ fontSize: '14px', color: '#64748b' }}>หักส่วนลด</span>
+                                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ef4444' }}>-{thb(receiptData?.discount)}</span>
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: '15px' }}>
+                            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a' }}>ยอดชำระสุทธิ</span>
+                            <span style={{ fontSize: '20px', fontWeight: '900', color: '#2563eb' }}>{thb(receiptData?.total_amount)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '30px' }}>
+                    <div>
+                        <p style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>สถานะการชำระเงิน</p>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', color: '#059669', fontSize: '13px', fontWeight: 'bold', letterSpacing: '1px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></span>
+                            ชำระเงินเรียบร้อยแล้ว ({methodMap[receiptData?.payment_method] || receiptData?.payment_method})
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ width: '150px', borderBottom: '1px solid #cbd5e1', marginBottom: '10px' }}></div>
+                        <p style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>เจ้าหน้าที่ผู้รับเงิน</p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

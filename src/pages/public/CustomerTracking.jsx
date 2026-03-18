@@ -1,7 +1,13 @@
-import { useState } from 'react';
-import { Search, Phone, QrCode, MessageSquare, Phone as PhoneIcon, CheckCircle, Wrench, Clock } from 'lucide-react';
+import { useState, useRef } from 'react';
+import API_URL from '../../api/config';
+import {
+    Search, Phone, QrCode, Send, Phone as PhoneIcon,
+    CheckCircle, Wrench, Clock, FileText, Download, Loader2
+} from 'lucide-react';
+import { toPng } from 'html-to-image';
+import ReceiptCard from '../../components/shared/ReceiptCard';
 
-const API = 'http://localhost:5000/api/repairs';
+const API = `${API_URL}/api/repairs`;
 
 const STATUS_META = {
     received: { label: 'รับเครื่องแล้ว', step: 0, color: '#60a5fa' },
@@ -49,8 +55,33 @@ export default function CustomerTracking() {
     const [phone, setPhone] = useState('');
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [downloading, setDownloading] = useState(false);
     const [error, setError] = useState('');
-    const [smsEnabled, setSms] = useState(true);
+    const receiptRef = useRef(null);
+
+
+    const handleDownloadReceipt = async () => {
+        if (!receiptRef.current) return;
+        setDownloading(true);
+        try {
+            // Wait a bit for images to load if any
+            await new Promise(r => setTimeout(r, 500));
+            const dataUrl = await toPng(receiptRef.current, {
+                quality: 0.95,
+                backgroundColor: '#ffffff',
+                cacheBust: true,
+            });
+            const link = document.createElement('a');
+            link.download = `Receipt-${result.order_code}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Error exporting receipt:', err);
+            alert('ไม่สามารถดาวน์โหลดใบเสร็จได้ในขณะนี้');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     const handleSearch = async (e) => {
         e.preventDefault();
@@ -191,31 +222,39 @@ export default function CustomerTracking() {
 
                         {/* Actions */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                            <button onClick={() => setSms(!smsEnabled)} className="flex items-center gap-2.5">
-                                <div className={`w-10 h-6 rounded-full relative transition-colors ${smsEnabled ? 'bg-green-500' : 'bg-slate-300'}`}>
-                                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow transition-all ${smsEnabled ? 'left-5' : 'left-1'}`} />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold text-slate-700">รับการแจ้งเตือน SMS</p>
-                                    <p className="text-[10px] text-slate-400">Notify when status changes</p>
-                                </div>
-                            </button>
+                            <div className="text-xs text-slate-400 italic">
+                                *ข้อมูลจะอัปเดตอัตโนมัติเมื่อสถานะเปลี่ยน
+                            </div>
                             <div className="flex items-center gap-2">
-                                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-green-700 border-2 border-green-300 hover:bg-green-50 transition-colors">
-                                    <MessageSquare size={14} />LINE
+                                <a href="https://t.me/SuperArt_Alert_bot" target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-[#0088cc] border-2 border-[#0088cc] hover:bg-blue-50 transition-colors">
+                                    <Send size={14} />Telegram
+                                </a>
+                                <button onClick={handleDownloadReceipt} disabled={downloading}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-emerald-600 border-2 border-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50">
+                                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                                    ใบเสร็จ
                                 </button>
-                                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
+                                <a href="tel:0617049154"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
                                     style={{ backgroundColor: '#111827' }}>
                                     <PhoneIcon size={14} />ติดต่อร้าน
-                                </button>
+                                </a>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
             <footer className="py-5 text-center">
-                <p className="text-xs text-slate-400">© 2025 SuperArt Repair Service. All rights reserved.</p>
+                <p className="text-xs text-slate-400">© 2026 SuperArt Repair Service. All rights reserved.</p>
             </footer>
+
+            {/* Hidden Receipt for Capture */}
+            {result && (
+                <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -1000, pointerEvents: 'none', opacity: 0 }}>
+                    <ReceiptCard ref={receiptRef} order={result} />
+                </div>
+            )}
         </div>
     );
 }

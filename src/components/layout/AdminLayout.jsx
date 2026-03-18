@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import { Outlet, useNavigate } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import AdminTopbar from './AdminTopbar';
@@ -13,7 +15,7 @@ export default function AdminLayout() {
             return;
         }
         // Verify token with backend
-        fetch('http://localhost:5000/api/auth/me', {
+        fetch(`${API_URL}/api/auth/profile`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then((res) => {

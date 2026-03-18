@@ -1,13 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import {
     Search, Plus, Bell, Settings, ChevronDown, ChevronUp,
     Smartphone, User, Phone, MessageSquare, Printer,
     Camera, CheckCircle, Edit3, ChevronRight, RefreshCw, X,
-    AlertTriangle,
+    AlertTriangle, Trash2, Copy, Check,
 } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import ReceiptCard from '../../components/shared/ReceiptCard';
 
-const API = 'http://localhost:5000/api/repairs';
-const CUSTOMERS_API = 'http://localhost:5000/api/customers';
+const API = `${API_URL}/api/repairs`;
+const CUSTOMERS_API = `${API_URL}/api/customers`;
 const getAuthHeader = () => ({
     'Content-Type': 'application/json',
     Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -487,16 +491,38 @@ function Stepper({ step }) {
     );
 }
 
+/* ─── Copy Button ────────────────────────────────────────── */
+function CopyButton({ text, className = "" }) {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    return (
+        <button onClick={handleCopy} className={`p-1 hover:bg-white/10 rounded transition-colors ${className}`} title="คัดลอก">
+            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-slate-400" />}
+        </button>
+    );
+}
+
 /* ─── Expanded Card ────────────────────────────────────── */
 function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotify }) {
-    const fileRef = useRef();
+    const fileRefBefore = useRef();
+    const fileRefAfter = useRef();
+    const receiptRef = useRef(null);
+    const [uploadingBefore, setUploadingBefore] = useState(false);
+    const [uploadingAfter, setUploadingAfter] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [notifying, setNotifying] = useState(false);
+    const [exporting, setExporting] = useState(false);
     const step = STATUS_STEP[order.status] ?? 0;
     const parts = order.parts || [];
     const timeline = order.timeline || [];
     const total = parts.reduce((s, p) => s + Number(p.subtotal || 0), 0);
-    const hasLineId = Boolean(order.line_user_id);
+    const hasLineId = Boolean(order.line_user_id); // kept for backward-compat display
+    const hasTelegramId = Boolean(order.telegram_chat_id);
 
     const doStatusUpdate = async (status) => {
         setUpdating(true);
@@ -510,13 +536,13 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                     status === 'cancelled' ? 'ยกเลิกการซ่อมแล้ว' : 'อัปเดตสถานะสำเร็จ',
                     status === 'cancelled' ? 'error' : 'success'
                 );
-                // Auto-fire LINE notification after status change
-                if (hasLineId) {
+                // Auto-fire Telegram notification after status change
+                if (hasTelegramId) {
                     onNotify(order.id, /* silent */ true);
                 }
                 onStatusUpdated();
             } else {
-                onShowToast('เกิดข้อผิดพลาด', 'error');
+                onShowToast(data.message || 'เกิดข้อผิดพลาด', 'error');
             }
         } catch {
             onShowToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
@@ -524,10 +550,102 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
         setUpdating(false);
     };
 
+    const togglePayment = async () => {
+        const isCurrentlyPaid = order.is_paid > 0;
+        if (!confirm(`เปลี่ยนสถานะการชำระเงินเป็น "${isCurrentlyPaid ? 'ยังไม่ชำระ' : 'ชำระแล้ว'}" ?`)) return;
+        setUpdating(true);
+        try {
+            const res = await fetch(`${API}/${order.id}/payment`, {
+                method: 'PUT', headers: getAuthHeader(), body: JSON.stringify({ is_paid: isCurrentlyPaid ? 0 : 1 }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                onShowToast(data.message, 'success');
+                onStatusUpdated(); // This will trigger fetchOrders() in the parent and re-render
+            } else {
+                onShowToast(data.message || 'เกิดข้อผิดพลาด', 'error');
+            }
+        } catch {
+            onShowToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        }
+        setUpdating(false);
+    };
+
+    const handleFileUpload = async (e, type) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const isBefore = type === 'before';
+        isBefore ? setUploadingBefore(true) : setUploadingAfter(true);
+
+        const formData = new FormData();
+        formData.append('photo', file);
+        formData.append('type', type);
+
+        try {
+            const res = await fetch(`${API}/${order.id}/upload-photo`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                onShowToast(`อัปโหลดรูป${isBefore ? 'ก่อน' : 'หลัง'}ซ่อมสำเร็จ`, 'success');
+                onStatusUpdated();
+            } else {
+                onShowToast(data.message || 'อัปโหลดล้มเหลว', 'error');
+            }
+        } catch {
+            onShowToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        } finally {
+            isBefore ? setUploadingBefore(false) : setUploadingAfter(false);
+            e.target.value = null;
+        }
+    };
+
     const handleNotify = async () => {
         setNotifying(true);
         await onNotify(order.id, /* silent */ false);
         setNotifying(false);
+    };
+
+    const handleExportReceipt = async () => {
+        if (!receiptRef.current) {
+            onShowToast('ไม่พบข้อมูลใบเสร็จ (DOM Element Missing)', 'error');
+            return;
+        }
+        
+        setExporting(true);
+        onShowToast('กำลังเตรียมข้อมูลใบเสร็จ...', 'success');
+        
+        try {
+            // Need a slight delay to ensure fonts/layout are fully rendered by React
+            await new Promise(r => setTimeout(r, 100));
+            onShowToast('กำลังสร้างรูปภาพ โปรดรอสักครู่...', 'success');
+            
+            const dataUrl = await toPng(receiptRef.current, {
+                quality: 1.0, 
+                backgroundColor: '#ffffff',
+                width: 600, 
+                style: { transform: 'scale(1)', transformOrigin: 'top left' },
+                pixelRatio: 2 // Higher resolution
+            });
+            
+            onShowToast('กำลังบันทึกไฟล์...', 'success');
+            const link = document.createElement('a');
+            link.download = `receipt-${order.order_code}.png`;
+            link.href = dataUrl;
+            link.click();
+            
+            onShowToast('บันทึกใบเสร็จเป็นรูปภาพแล้ว', 'success');
+        } catch (err) {
+            console.error('Export Error:', err);
+            onShowToast(`เกิดข้อผิดพลาด: ${err.message || 'ไม่สามารถสร้างรูปภาพได้'}`, 'error');
+        } finally {
+            setExporting(false);
+        }
     };
 
     return (
@@ -541,7 +659,10 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                     {/* Col 1 — Order & Customer */}
                     <div className="pb-4 lg:pb-0 lg:pr-5">
                         <div className="flex items-center gap-2 mb-3">
-                            <span className="text-sm font-bold text-blue-400 font-mono">{order.order_code}</span>
+                            <span className="text-sm font-bold text-blue-400 font-mono flex items-center gap-1.5">
+                                {order.order_code}
+                                <CopyButton text={order.order_code} />
+                            </span>
                             <Badge status={order.status} />
                         </div>
                         <div className="flex items-center gap-2 mb-1">
@@ -611,23 +732,26 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleNotify}
-                                    disabled={!hasLineId || notifying}
-                                    title={hasLineId ? 'ส่งแจ้งเตือนผ่าน LINE' : 'ลูกค้าไม่มี LINE User ID'}
+                                    disabled={!hasTelegramId || notifying}
+                                    title={hasTelegramId ? 'ส่งแจ้งเตือนผ่าน Telegram' : 'ลูกค้าไม่มี Telegram Chat ID'}
                                     className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
                                     style={{
-                                        border: hasLineId ? '1px solid rgba(52,211,153,0.5)' : '1px solid #374151',
-                                        color: hasLineId ? '#34d399' : '#4b5563',
-                                        opacity: (!hasLineId || notifying) ? 0.5 : 1,
-                                        cursor: (!hasLineId || notifying) ? 'not-allowed' : 'pointer',
-                                        backgroundColor: hasLineId ? 'rgba(52,211,153,0.08)' : 'transparent',
+                                        border: hasTelegramId ? '1px solid rgba(34,158,217,0.5)' : '1px solid #374151',
+                                        color: hasTelegramId ? '#229ED9' : '#4b5563',
+                                        opacity: (!hasTelegramId || notifying) ? 0.5 : 1,
+                                        cursor: (!hasTelegramId || notifying) ? 'not-allowed' : 'pointer',
+                                        backgroundColor: hasTelegramId ? 'rgba(34,158,217,0.08)' : 'transparent',
                                     }}
                                 >
                                     <MessageSquare size={13} />
                                     {notifying ? 'กำลังส่ง...' : 'แจ้งลูกค้า'}
                                 </button>
-                                <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/5 transition-colors"
+                                <button 
+                                    onClick={handleExportReceipt}
+                                    disabled={exporting}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     style={{ border: '1px solid #374151' }}>
-                                    <Printer size={13} />พิมพ์ใบงาน
+                                    <Printer size={13} />{exporting ? 'กำลังประมวลผล...' : 'พิมพ์ใบงาน'}
                                 </button>
                             </div>
                         </div>
@@ -642,19 +766,57 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                     <div className="pb-5 lg:pb-0 lg:pr-5">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">รูปภาพ ก่อน/หลัง ซ่อม</p>
                         <div className="grid grid-cols-2 gap-2">
-                            <div className="rounded-xl aspect-square flex flex-col items-center justify-center relative overflow-hidden"
-                                style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}>
-                                <div className="text-4xl mb-1">📱</div>
-                                <div className="absolute bottom-0 left-0 right-0 text-center py-1 text-xs text-slate-400"
-                                    style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>Before</div>
+                            {/* Before Photo */}
+                            <div onClick={() => fileRefBefore.current?.click()}
+                                className="rounded-xl aspect-square flex flex-col items-center justify-center relative overflow-hidden cursor-pointer border hover:border-slate-500 transition-colors"
+                                style={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}>
+                                {order.before_photo ? (
+                                    <img 
+                                        src={order.before_photo.startsWith('/uploads') 
+                                            ? `${API_URL}${order.before_photo}` 
+                                            : `${API_URL}/uploads/repairs/${order.before_photo}`} 
+                                        alt="Before" className="w-full h-full object-cover" 
+                                    />
+                                ) : (
+                                    <>
+                                        {uploadingBefore ? <RefreshCw className="animate-spin text-blue-500" size={20} /> : (
+                                            <>
+                                                <div className="text-3xl mb-1">📱</div>
+                                                <span className="text-[10px] text-slate-500">แตะเพื่อเพิ่ม</span>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                                <div className="absolute bottom-0 left-0 right-0 text-center py-1 text-[10px] text-white font-bold uppercase tracking-widest"
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>Before</div>
+                                <input ref={fileRefBefore} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'before')} />
                             </div>
-                            <button onClick={() => fileRef.current?.click()}
-                                className="rounded-xl aspect-square flex flex-col items-center justify-center gap-2 hover:bg-slate-700/30 transition-colors"
-                                style={{ backgroundColor: '#0f172a', border: '1px dashed #374151' }}>
-                                <Camera size={20} className="text-slate-500" />
-                                <span className="text-xs text-slate-500 text-center leading-snug">เพิ่มรูปหลังซ่อม</span>
-                            </button>
-                            <input ref={fileRef} type="file" accept="image/*" className="hidden" />
+
+                            {/* After Photo */}
+                            <div onClick={() => fileRefAfter.current?.click()}
+                                className="rounded-xl aspect-square flex flex-col items-center justify-center relative overflow-hidden cursor-pointer border hover:border-slate-500 transition-colors"
+                                style={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}>
+                                {order.after_photo ? (
+                                    <img 
+                                        src={order.after_photo.startsWith('/uploads') 
+                                            ? `${API_URL}${order.after_photo}` 
+                                            : `${API_URL}/uploads/repairs/${order.after_photo}`} 
+                                        alt="After" className="w-full h-full object-cover" 
+                                    />
+                                ) : (
+                                    <>
+                                        {uploadingAfter ? <RefreshCw className="animate-spin text-blue-500" size={20} /> : (
+                                            <>
+                                                <Camera size={20} className="text-slate-500" />
+                                                <span className="text-[10px] text-slate-500">แตะเพื่อเพิ่ม</span>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                                <div className="absolute bottom-0 left-0 right-0 text-center py-1 text-[10px] text-white font-bold uppercase tracking-widest"
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>After</div>
+                                <input ref={fileRefAfter} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'after')} />
+                            </div>
                         </div>
                     </div>
 
@@ -687,17 +849,18 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                                 <span className="text-base font-bold text-blue-400">{thb(total)}</span>
                             </div>
                         )}
-                        <div className="flex items-center gap-2 mt-4">
+                        <div className="flex items-center gap-2 mt-4 cursor-pointer hover:opacity-80 transition-opacity"
+                             onClick={togglePayment} title="คลิกเพื่อเปลี่ยนสถานะการชำระเงิน">
                             <span className="text-xs text-slate-400">สถานะชำระเงิน</span>
                             {order.is_paid > 0 ? (
                                 <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                                     style={{ backgroundColor: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}>
-                                    ชำระแล้ว
+                                    ชำระแล้ว (คลิกเพื่อยกเลิก)
                                 </span>
                             ) : (
                                 <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
                                     style={{ backgroundColor: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />ยังไม่ชำระ
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />ยังไม่ชำระ (คลิกเพื่อชำระ)
                                 </span>
                             )}
                         </div>
@@ -728,22 +891,30 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                     </div>
                 </div>
             </div>
+
+            {/* Hidden Receipt for Capture */}
+            <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -1000, pointerEvents: 'none', opacity: 0 }}>
+                <ReceiptCard ref={receiptRef} order={order} />
+            </div>
         </>
     );
 }
 
 /* ─── Collapsed Card ───────────────────────────────────── */
-function CollapsedCard({ order, onExpand, onNotify }) {
+function CollapsedCard({ order, onExpand, onNotify, onDelete }) {
     const step = STATUS_STEP[order.status] ?? 0;
     const pct = Math.round((step / (STEPS.length - 1)) * 100);
-    const hasLineId = Boolean(order.line_user_id);
+    const hasTelegramId = Boolean(order.telegram_chat_id);
     return (
         <div className="rounded-2xl border p-4 hover:border-blue-500/40 transition-all cursor-pointer"
             style={{ backgroundColor: '#111827', borderColor: '#1e293b' }} onClick={onExpand}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold text-blue-400 font-mono">{order.order_code}</span>
+                        <span className="text-xs font-bold text-blue-400 font-mono flex items-center gap-1.5">
+                            {order.order_code}
+                            <CopyButton text={order.order_code} />
+                        </span>
                         <Badge status={order.status} />
                     </div>
                     <div className="flex items-center gap-1.5 mb-0.5">
@@ -776,17 +947,25 @@ function CollapsedCard({ order, onExpand, onNotify }) {
                     </div>
                     <div className="flex items-center gap-2">
                         <button
-                            title={hasLineId ? 'ส่งแจ้งเตือนผ่าน LINE' : 'ลูกค้าไม่มี LINE User ID'}
-                            disabled={!hasLineId}
+                            title={hasTelegramId ? 'ส่งแจ้งเตือนผ่าน Telegram' : 'ลูกค้าไม่มี Telegram Chat ID'}
+                            disabled={!hasTelegramId}
                             className="p-2 rounded-lg transition-colors"
                             style={{
-                                border: hasLineId ? '1px solid rgba(52,211,153,0.4)' : '1px solid #1e293b',
-                                cursor: hasLineId ? 'pointer' : 'not-allowed',
-                                opacity: hasLineId ? 1 : 0.4,
+                                border: hasTelegramId ? '1px solid rgba(34,158,217,0.4)' : '1px solid #1e293b',
+                                cursor: hasTelegramId ? 'pointer' : 'not-allowed',
+                                opacity: hasTelegramId ? 1 : 0.4,
                             }}
-                            onClick={(e) => { e.stopPropagation(); if (hasLineId) onNotify(order.id, false); }}
+                            onClick={(e) => { e.stopPropagation(); if (hasTelegramId) onNotify(order.id, false); }}
                         >
-                            <MessageSquare size={14} style={{ color: hasLineId ? '#34d399' : '#475569' }} />
+                            <MessageSquare size={14} style={{ color: hasTelegramId ? '#229ED9' : '#475569' }} />
+                        </button>
+                        <button
+                            title="ลบรายการซ่อม"
+                            className="p-2 rounded-lg transition-colors hover:bg-red-500/10"
+                            style={{ border: '1px solid rgba(248,113,113,0.3)' }}
+                            onClick={(e) => { e.stopPropagation(); onDelete(order); }}
+                        >
+                            <Trash2 size={14} className="text-red-400" />
                         </button>
                         <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-blue-400 font-semibold hover:bg-blue-500/10 transition-colors"
                             style={{ border: '1px solid rgba(96,165,250,0.3)' }}
@@ -841,13 +1020,25 @@ export default function RepairOrders() {
     const [statusCounts, setStatusCounts] = useState({});
     const [createOpen, setCreateOpen] = useState(false);
     const [toast, setToast] = useState(null); // { message, type }
+    const [notiOpen, setNotiOpen] = useState(false);
+    const notiRef = useRef(null);
+
+    // Close notifications dropdown when clicking outside
+    useEffect(() => {
+        const handler = (e) => {
+            if (notiRef.current && !notiRef.current.contains(e.target)) {
+                setNotiOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     const showToast = useCallback((message, type = 'success') => {
         setToast({ message, type });
     }, []);
 
-    // ── LINE Notify ───────────────────────────────────────────
-    // silent=true skips success toast (used when called automatically after status change)
+
     const notifyOrder = useCallback(async (orderId, silent = false) => {
         try {
             const res = await fetch(`${API}/${orderId}/notify`, {
@@ -855,12 +1046,12 @@ export default function RepairOrders() {
             });
             const data = await res.json();
             if (data.success) {
-                if (!silent) showToast('\u0e2a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19\u0e1c\u0e48\u0e32\u0e19 LINE \u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27 \ud83c\udf89', 'success');
+                if (!silent) showToast('ส่งข้อความแจ้งเตือนผ่าน Telegram เรียบร้อยแล้ว 🎉', 'success');
             } else {
-                if (!silent) showToast(data.message || '\u0e2a\u0e48\u0e07 LINE \u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08', 'error');
+                if (!silent) showToast(data.message || 'ส่ง Telegram ไม่สำเร็จ', 'error');
             }
         } catch {
-            if (!silent) showToast('\u0e44\u0e21\u0e48\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e40\u0e0b\u0e34\u0e23\u0e4c\u0e1f\u0e40\u0e27\u0e2d\u0e23\u0e4c', 'error');
+            if (!silent) showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
         }
     }, [showToast]);
 
@@ -878,6 +1069,28 @@ export default function RepairOrders() {
         } catch { /* noop */ }
         setLoading(false);
     }, [activeTab, search]);
+
+    // ── Delete Repair Order ──────────────────────────────────
+    const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, order_code }
+    const deleteOrder = useCallback(async () => {
+        if (!deleteConfirm) return;
+        try {
+            const res = await fetch(`${API}/${deleteConfirm.id}`, {
+                method: 'DELETE', headers: getAuthHeader(),
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`ลบ ${deleteConfirm.order_code} เรียบร้อยแล้ว`, 'success');
+                fetchOrders();
+            } else {
+                showToast(data.message || 'ลบไม่สำเร็จ', 'error');
+            }
+        } catch {
+            showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์', 'error');
+        } finally {
+            setDeleteConfirm(null);
+        }
+    }, [deleteConfirm, showToast, fetchOrders]);
 
     useEffect(() => {
         const t = setTimeout(fetchOrders, 300);
@@ -899,6 +1112,17 @@ export default function RepairOrders() {
             {/* Toast */}
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+            {/* Delete confirm */}
+            {deleteConfirm && (
+                <ConfirmDialog
+                    message={`ลบรายการ "${deleteConfirm.order_code}" ? \nข้อมูลทั้งหมดจะถูกลบถาวร ไม่สามารถกู้คืนได้`}
+                    onConfirm={deleteOrder}
+                    onCancel={() => setDeleteConfirm(null)}
+                    confirmLabel="ลบเลย"
+                    danger={true}
+                />
+            )}
+
             {/* Top bar */}
             <div className="flex items-center justify-between px-6 pt-5 pb-2">
                 <div className="flex items-center gap-2.5">
@@ -911,10 +1135,47 @@ export default function RepairOrders() {
                     <button onClick={fetchOrders} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="รีเฟรช">
                         <RefreshCw size={16} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <button className="relative p-2 rounded-lg hover:bg-white/5 transition-colors">
-                        <Bell size={18} className="text-slate-400" />
-                        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-                    </button>
+                    <div className="relative" ref={notiRef}>
+                        <button 
+                            onClick={() => setNotiOpen(v => !v)}
+                            className={`relative p-2 rounded-lg transition-colors ${notiOpen ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+                            <Bell size={18} className="text-slate-400" />
+                            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full box-content border-2 border-[#0b1120]" />
+                        </button>
+                        
+                        {/* Notification Dropdown */}
+                        {notiOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-80 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl py-2 z-50">
+                                <div className="px-4 py-2 border-b border-slate-700/50 flex justify-between items-center">
+                                    <h3 className="text-sm font-bold text-white">การแจ้งเตือน</h3>
+                                    <button className="text-[10px] text-blue-400 hover:text-blue-300">ล้างทั้งหมด</button>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto">
+                                    <div className="px-4 py-3 border-b border-slate-700/50 hover:bg-slate-800/50 cursor-pointer transition-colors">
+                                        <p className="text-sm text-white font-medium mb-0.5">แจ้งเตือนระบบ</p>
+                                        <p className="text-xs text-slate-400">ระบบเชื่อมต่อ Telegram Bot สำเร็จแล้ว</p>
+                                        <p className="text-[10px] text-slate-500 mt-1">10 นาทีที่แล้ว</p>
+                                    </div>
+                                    <div className="px-4 py-3 border-b border-slate-700/50 hover:bg-slate-800/50 cursor-pointer transition-colors">
+                                        <div className="flex gap-2 mb-0.5 items-center">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                            <p className="text-sm text-white font-medium">รายการซ่อมใหม่ SA-2026-0001</p>
+                                        </div>
+                                        <p className="text-xs text-slate-400">ลูกค้า Anocha แจ้งซ่อมหน้าจอแตก</p>
+                                        <p className="text-[10px] text-slate-500 mt-1">1 ชั่วโมงที่แล้ว</p>
+                                    </div>
+                                    <div className="px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors opacity-60">
+                                        <p className="text-sm text-slate-300 font-medium mb-0.5">เปลี่ยนสถานะสำเร็จ</p>
+                                        <p className="text-xs text-slate-500">ปรับสถานะ SA-2025-0099 เป็น "ซ่อมเสร็จ"</p>
+                                        <p className="text-[10px] text-slate-600 mt-1">เมื่อวาน</p>
+                                    </div>
+                                </div>
+                                <div className="px-4 py-2 border-t border-slate-700/50 text-center">
+                                    <button className="text-xs text-slate-400 hover:text-white transition-colors">ดูทั้งหมด</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <button className="p-2 rounded-lg hover:bg-white/5 transition-colors">
                         <Settings size={18} className="text-slate-400" />
                     </button>
@@ -976,7 +1237,7 @@ export default function RepairOrders() {
                                 onShowToast={showToast}
                                 onNotify={notifyOrder}
                             />
-                            : <CollapsedCard key={order.id} order={order} onExpand={() => setExpandedId(order.id)} onNotify={notifyOrder} />
+                            : <CollapsedCard key={order.id} order={order} onExpand={() => setExpandedId(order.id)} onNotify={notifyOrder} onDelete={(o) => setDeleteConfirm({ id: o.id, order_code: o.order_code })} />
                     ))}
                     {!loading && orders.length === 0 && (
                         <div className="text-center py-16 text-slate-500 text-sm">ไม่พบรายการที่ค้นหา</div>

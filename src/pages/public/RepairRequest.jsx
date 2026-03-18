@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import { useNavigate } from 'react-router-dom';
 import {
     Wrench, Smartphone, Tablet, Laptop, MoreHorizontal,
@@ -106,8 +108,11 @@ export default function RepairRequest() {
     const [form, setForm] = useState({
         name: '', phone: '', lineId: '',
         deviceType: '', brand: '', model: '',
-        symptoms: '',
+        symptoms: '', appointment_date: '',
+        estimated_cost: '', technician_notes: '',
     });
+    const [beforePhoto, setBeforePhoto] = useState(null);
+    const [afterPhoto, setAfterPhoto] = useState(null);
 
     const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
     const selectDevice = (k) => setForm(f => ({ ...f, deviceType: k }));
@@ -154,18 +159,24 @@ export default function RepairRequest() {
         if (!agreed) { setErrors({ agreed: 'กรุณายอมรับเงื่อนไข' }); return; }
         setSubmitting(true);
         try {
-            const res = await fetch('http://localhost:5000/api/repairs/request', {
+            const formData = new FormData();
+            formData.append('full_name', form.name);
+            formData.append('phone', form.phone);
+            formData.append('line_id', form.lineId || '');
+            formData.append('device_type', form.deviceType || 'mobile');
+            formData.append('device_brand', form.brand);
+            formData.append('device_model', form.model || '');
+            formData.append('symptoms', form.symptoms);
+            formData.append('appointment_date', form.appointment_date || '');
+            formData.append('estimated_cost', form.estimated_cost || 0);
+            formData.append('technician_notes', form.technician_notes || '');
+
+            if (beforePhoto) formData.append('before_photo', beforePhoto.file);
+            if (afterPhoto) formData.append('after_photo', afterPhoto.file);
+
+            const res = await fetch(`${API_URL}/api/repairs/request`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    full_name: form.name,
-                    phone: form.phone,
-                    line_id: form.lineId || null,
-                    device_type: form.deviceType || 'mobile',
-                    device_brand: form.brand,
-                    device_model: form.model || '',
-                    symptoms: form.symptoms,
-                }),
+                body: formData,
             });
             const data = await res.json();
             if (!data.success) {
@@ -175,7 +186,8 @@ export default function RepairRequest() {
             }
             setTrackingId(data.tracking_code);
             setSuccess(true);
-        } catch {
+        } catch (err) {
+            console.error('Submit error:', err);
             setErrors({ agreed: 'เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่' });
         }
         setSubmitting(false);
@@ -199,17 +211,17 @@ export default function RepairRequest() {
                     {/* ── Logo ── */}
                     <div className="flex flex-col items-center mb-6 text-center">
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-lg"
-                            style={{ backgroundColor: '#f97316' }}>
+                            style={{ backgroundColor: '#111827' }}>
                             <Wrench size={28} className="text-white" />
                         </div>
-                        <p className="text-xs font-bold tracking-widest text-orange-500 uppercase">i05 SuperArt</p>
-                        <p className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">Mobile Repair Service</p>
+                        <p className="text-xs font-bold tracking-widest text-slate-800 uppercase">SuperArt Technician</p>
+                        <p className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">Repair Logging System</p>
                     </div>
 
                     {/* ── Heading ── */}
                     <div className="text-center mb-6">
-                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">แจ้งซ่อมออนไลน์</h1>
-                        <p className="text-sm text-slate-500">กรุณากรอกข้อมูลเพื่อเริ่มขั้นตอนการแจ้งซ่อม</p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">บันทึกใบรับซ่อม (สำหรับช่าง)</h1>
+                        <p className="text-sm text-slate-500">บันทึกข้อมูลการรับซ่อมและประเมินราคาเบื้องต้น</p>
                     </div>
 
                     {/* ── Step indicator ── */}
@@ -243,13 +255,22 @@ export default function RepairRequest() {
                                 </div>
                             </div>
 
-                            {/* Line ID */}
-                            <div>
-                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                                    Line ID <span className="text-slate-400 font-normal">(ไม่บังคับ)</span>
-                                </label>
-                                <input type="text" value={form.lineId} onChange={set('lineId')}
-                                    placeholder="@lineid" className={inputCls('lineId')} />
+                            {/* Line ID + Appointment */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        Line ID <span className="text-slate-400 font-normal">(ไม่บังคับ)</span>
+                                    </label>
+                                    <input type="text" value={form.lineId} onChange={set('lineId')}
+                                        placeholder="@lineid" className={inputCls('lineId')} />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        วันนัดหมาย <span className="text-slate-400 font-normal">(ถ้ามี)</span>
+                                    </label>
+                                    <input type="datetime-local" value={form.appointment_date} onChange={set('appointment_date')}
+                                        className={inputCls('appointment_date')} />
+                                </div>
                             </div>
 
                             <button onClick={nextStep}
@@ -320,42 +341,85 @@ export default function RepairRequest() {
                                     อาการเสีย <span className="text-red-400">*</span>
                                 </label>
                                 <textarea value={form.symptoms} onChange={set('symptoms')}
-                                    rows={4} placeholder="กรุณาระบุอาการเสียโดยละเอียด เช่น หน้าจอแตก, ชาร์จไม่เข้า..."
+                                    rows={3} placeholder="กรุณาระบุอาการเสียโดยละเอียด เช่น หน้าจอแตก, ชาร์จไม่เข้า..."
                                     className={inputCls('symptoms') + ' resize-none'} />
                                 {errors.symptoms && <p className="text-xs text-red-400 mt-1">{errors.symptoms}</p>}
                             </div>
 
-                            {/* Photo upload */}
-                            <div>
-                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                                    รูปภาพประกอบ <span className="text-slate-400 font-normal">(สูงสุด 4 รูป)</span>
-                                </label>
-                                <div
-                                    onClick={() => fileRef.current?.click()}
-                                    onDragOver={e => e.preventDefault()}
-                                    onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-                                    className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-all">
-                                    <Camera size={24} className="text-slate-400" />
-                                    <p className="text-sm font-medium text-slate-600">ถ่ายภาพหรืออัปโหลดรูปภาพ</p>
-                                    <p className="text-xs text-slate-400">รองรับไฟล์ JPG, PNG</p>
+                            {/* Price & Tech Notes */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        ราคาซ่อมประเมิน (บาท)
+                                    </label>
+                                    <input type="number" value={form.estimated_cost} onChange={set('estimated_cost')}
+                                        placeholder="0.00" className={inputCls('estimated_cost')} />
                                 </div>
-                                <input ref={fileRef} type="file" multiple accept="image/*" className="hidden"
-                                    onChange={e => handleFiles(e.target.files)} />
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">หมายเหตุช่าง</label>
+                                    <input type="text" value={form.technician_notes} onChange={set('technician_notes')}
+                                        placeholder="จดบันทึกเพิ่มเติม..." className={inputCls('technician_notes')} />
+                                </div>
+                            </div>
 
-                                {/* Thumbnails */}
-                                {photos.length > 0 && (
-                                    <div className="flex gap-2 mt-3 flex-wrap">
-                                        {photos.map((p, i) => (
-                                            <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
-                                                <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                                                <button onClick={() => removePhoto(i)}
-                                                    className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                                                    <X size={9} className="text-white" />
-                                                </button>
-                                            </div>
-                                        ))}
+                            {/* Photo upload slots */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        รูปก่อนซ่อม (Before)
+                                    </label>
+                                    <div className="relative aspect-video rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden"
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file'; input.accept = 'image/*';
+                                            input.onchange = (e) => {
+                                                const file = e.target.files[0];
+                                                if (file) setBeforePhoto({ file, url: URL.createObjectURL(file) });
+                                            };
+                                            input.click();
+                                        }}>
+                                        {beforePhoto ? (
+                                            <>
+                                                <img src={beforePhoto.url} className="w-full h-full object-cover" />
+                                                <button onClick={(e) => { e.stopPropagation(); setBeforePhoto(null); }}
+                                                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"><X size={12} /></button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Camera size={24} className="text-slate-400" />
+                                                <p className="text-xs text-slate-500">เลือกรูปก่อนซ่อม</p>
+                                            </>
+                                        )}
                                     </div>
-                                )}
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                        รูปหลังซ่อม (After - ถ้าเสร็จแล้ว)
+                                    </label>
+                                    <div className="relative aspect-video rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden"
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file'; input.accept = 'image/*';
+                                            input.onchange = (e) => {
+                                                const file = e.target.files[0];
+                                                if (file) setAfterPhoto({ file, url: URL.createObjectURL(file) });
+                                            };
+                                            input.click();
+                                        }}>
+                                        {afterPhoto ? (
+                                            <>
+                                                <img src={afterPhoto.url} className="w-full h-full object-cover" />
+                                                <button onClick={(e) => { e.stopPropagation(); setAfterPhoto(null); }}
+                                                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"><X size={12} /></button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Camera size={24} className="text-slate-400" />
+                                                <p className="text-xs text-slate-500">เลือกรูปหลังซ่อม</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Nav buttons */}
@@ -390,6 +454,7 @@ export default function RepairRequest() {
                                             ['ชื่อ-นามสกุล', form.name || '-'],
                                             ['เบอร์โทร', form.phone || '-'],
                                             ['Line ID', form.lineId || '-'],
+                                            ['วันนัดหมาย', form.appointment_date ? new Date(form.appointment_date + ':00').toLocaleString('th-TH') : '-'],
                                         ].map(([k, v]) => (
                                             <div key={k} className="flex justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
                                                 <span className="text-slate-500">{k}</span>
@@ -405,6 +470,7 @@ export default function RepairRequest() {
                                             ['ยี่ห้อ', form.brand || '-'],
                                             ['รุ่น', form.model || '-'],
                                             ['อาการเสีย', form.symptoms || '-'],
+                                            ['ราคาประเมิน', form.estimated_cost ? Number(form.estimated_cost).toLocaleString() + ' บาท' : '-'],
                                         ].map(([k, v]) => (
                                             <div key={k} className="flex justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
                                                 <span className="text-slate-500 flex-shrink-0">{k}</span>
@@ -415,13 +481,22 @@ export default function RepairRequest() {
                                 </div>
 
                                 {/* Photos */}
-                                {photos.length > 0 && (
+                                {(beforePhoto || afterPhoto) && (
                                     <div className="p-5 border-t border-slate-100">
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">รูปภาพประกอบ</p>
                                         <div className="flex gap-2 flex-wrap">
-                                            {photos.map((p, i) => (
-                                                <img key={i} src={p.url} alt="" className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
-                                            ))}
+                                            {beforePhoto && (
+                                                <div className="text-center">
+                                                    <img src={beforePhoto.url} className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+                                                    <p className="text-[10px] mt-1 text-slate-400">ก่อนซ่อม</p>
+                                                </div>
+                                            )}
+                                            {afterPhoto && (
+                                                <div className="text-center">
+                                                    <img src={afterPhoto.url} className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+                                                    <p className="text-[10px] mt-1 text-slate-400">หลังซ่อม</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -448,8 +523,8 @@ export default function RepairRequest() {
                                 </button>
                                 <button onClick={handleSubmit} disabled={submitting}
                                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
-                                    style={{ backgroundColor: '#22c55e' }}>
-                                    <CheckCircle size={16} /> {submitting ? 'กำลังส่ง...' : 'ส่งแจ้งซ่อม'}
+                                    style={{ backgroundColor: '#111827' }}>
+                                    <CheckCircle size={16} /> {submitting ? 'กำลังบันทึก...' : 'เปิดใบแจ้งซ่อม'}
                                 </button>
                             </div>
                         </div>

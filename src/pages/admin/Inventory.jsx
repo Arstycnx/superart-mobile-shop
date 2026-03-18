@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import { Plus, Search, AlertTriangle, Edit2, Trash2, RefreshCw } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/products';
+const API = `${API_URL}/api/products`;
 const formatCurrency = (n) =>
     new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0 }).format(n ?? 0);
 

@@ -18,6 +18,14 @@ export default function AdminTopbar() {
     const title = pageTitles[location.pathname] || 'SuperArt';
     const [dropOpen, setDropOpen] = useState(false);
     const dropRef = useRef(null);
+    const [notiOpen, setNotiOpen] = useState(false);
+    const notiRef = useRef(null);
+
+    const [mockNotifications, setMockNotifications] = useState([
+        { id: 1, title: 'แจ้งเตือนระบบ', msg: 'ระบบเชื่อมต่อ Telegram Bot สำเร็จพร้อมใช้งานแล้ว', time: '10 นาทีที่แล้ว', unread: true },
+        { id: 2, title: 'รายการซ่อมใหม่ SA-2026-0001', msg: 'ลูกค้าคุณ Anocha ส่งซ่อม Apple 15 Pro max สทนาอาการ: หน้าจอแตก', time: '1 ชั่วโมงที่แล้ว', unread: true },
+        { id: 3, title: 'เปลี่ยนสถานะสำเร็จ', msg: 'ทำการปรับสถานะใบงาน SA-2025-0099 เป็น "ซ่อมเสร็จเรียบร้อย"', time: 'เมื่อวาน 14:30 น.', unread: false },
+    ]);
 
     // Read user info from localStorage (saved at login)
     const user = (() => {
@@ -28,9 +36,12 @@ export default function AdminTopbar() {
     const displayRole = user.role === 'admin' ? 'ผู้ดูแลระบบ' : user.role === 'technician' ? 'ช่างซ่อม' : 'พนักงาน';
     const avatarSeed = user.email || 'superart';
 
-    // Close dropdown when clicking outside
+    // Close dropdowns when clicking outside
     useEffect(() => {
-        const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false); };
+        const handler = (e) => { 
+            if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false); 
+            if (notiRef.current && !notiRef.current.contains(e.target)) setNotiOpen(false); 
+        };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
@@ -49,10 +60,51 @@ export default function AdminTopbar() {
             {/* Right section */}
             <div className="flex items-center gap-4">
                 {/* Bell */}
-                <button className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                    <Bell size={18} className="text-slate-500" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-                </button>
+                <div className="relative" ref={notiRef}>
+                    <button 
+                        onClick={() => setNotiOpen(v => !v)}
+                        className={`relative p-2 rounded-lg transition-colors ${notiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}>
+                        <Bell size={18} className="text-slate-500" />
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                    </button>
+                    {/* Notification Dropdown */}
+                    {notiOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 overflow-hidden transform origin-top-right transition-all">
+                            <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
+                                <h3 className="text-sm font-bold text-slate-800">การแจ้งเตือน</h3>
+                                {mockNotifications.length > 0 && (
+                                    <button 
+                                        onClick={() => setMockNotifications([])}
+                                        className="text-[10px] text-blue-600 font-medium hover:text-blue-700">
+                                        ล้างทั้งหมด
+                                    </button>
+                                )}
+                            </div>
+                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                {mockNotifications.length === 0 ? (
+                                    <div className="px-4 py-8 text-center bg-slate-50/30">
+                                        <Bell size={24} className="mx-auto text-slate-300 mb-2" />
+                                        <p className="text-sm text-slate-500 font-medium">ไม่มีการแจ้งเตือนใหม่</p>
+                                    </div>
+                                ) : (
+                                    mockNotifications.map((noti) => (
+                                        <div key={noti.id} className={`px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors group ${!noti.unread ? 'opacity-60' : ''}`}>
+                                            <div className="flex justify-between items-start mb-0.5">
+                                                <p className="text-sm text-slate-800 font-bold group-hover:text-blue-600 transition-colors">{noti.title}</p>
+                                                {noti.unread && <span className="w-2 h-2 rounded-full bg-blue-500 mt-1"></span>}
+                                            </div>
+                                            <p className="text-xs text-slate-600 leading-snug">{noti.msg}</p>
+                                            <p className="text-[10px] text-slate-400 mt-1.5 font-medium">{noti.time}</p>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50 text-center">
+                                <button className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors">ดูการแจ้งเตือนทั้งหมด</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 {/* Admin dropdown */}
                 <div className="relative" ref={dropRef}>

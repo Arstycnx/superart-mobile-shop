@@ -1,3 +1,5 @@
+import axios from 'axios';
+import API_URL from '../../api/config';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Moon, ClipboardList, Wrench } from 'lucide-react';
@@ -18,7 +20,7 @@ export default function LoginPage() {
         }
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:5000/api/auth/login', {
+            const res = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: form.email, password: form.password }),
@@ -219,14 +221,24 @@ export default function LoginPage() {
                             </div>
 
                             {/* Track order button */}
-                            <button
-                                type="button"
-                                onClick={() => navigate('/track')}
-                                className="w-full py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                            >
-                                <ClipboardList size={16} className="text-slate-500" />
-                                ตรวจสอบสถานะงานซ่อม
-                            </button>
+                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/repair-request')}
+                                    className="w-full py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Wrench size={16} className="text-slate-500" />
+                                    แจ้งซ่อมออนไลน์
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/track')}
+                                    className="w-full py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <ClipboardList size={16} className="text-slate-500" />
+                                    ตรวจสอบสถานะ
+                                </button>
+                            </div>
                         </form>
 
                         {/* Footer */}

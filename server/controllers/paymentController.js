@@ -11,7 +11,7 @@ const generateReceiptCode = async () => {
 // ─── GET /api/payments ────────────────────────────────────
 const getAll = async (req, res) => {
     try {
-        const { search = '', status = '', page = 1, limit = 20 } = req.query;
+        const { search = '', status = '', date = '', page = 1, limit = 20 } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
         const where = ['1=1'];
@@ -20,6 +20,10 @@ const getAll = async (req, res) => {
         if (status && status !== 'all') {
             where.push('p.status = ?');
             params.push(status);
+        }
+        if (date) {
+            where.push('DATE(p.payment_date) = ?');
+            params.push(date);
         }
         if (search) {
             where.push('(p.receipt_code LIKE ? OR c.full_name LIKE ? OR c.phone LIKE ? OR ro.order_code LIKE ?)');
@@ -67,9 +71,27 @@ const getAll = async (req, res) => {
 // ─── GET /api/payments/summary ────────────────────────────
 const getSummary = async (req, res) => {
     try {
-        const [[paid]] = await pool.query(`SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt FROM payments WHERE status='paid'`);
-        const [[pending]] = await pool.query(`SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt FROM payments WHERE status='pending'`);
-        const [[overdue]] = await pool.query(`SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt FROM payments WHERE status='overdue'`);
+        const { date = '' } = req.query;
+        let dateCondition = '';
+        const params = [];
+
+        if (date) {
+            dateCondition = ' AND DATE(payment_date) = ?';
+            params.push(date);
+        }
+
+        const [[paid]] = await pool.query(
+            `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt FROM payments WHERE status='paid'${dateCondition}`, 
+            params
+        );
+        const [[pending]] = await pool.query(
+            `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt FROM payments WHERE status='pending'${dateCondition}`, 
+            params
+        );
+        const [[overdue]] = await pool.query(
+            `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt FROM payments WHERE status='overdue'${dateCondition}`, 
+            params
+        );
         res.json({
             success: true,
             data: {
@@ -156,6 +178,8 @@ const create = async (req, res) => {
     }
 };
 
+const { updateCustomerMembership } = require('../utils/membership');
+
 // ─── PUT /api/payments/:id/verify (protected) ────────────
 const verify = async (req, res) => {
     try {
@@ -172,6 +196,13 @@ const verify = async (req, res) => {
                 `UPDATE payments SET status=?, verified_by=?, verified_at=NOW() WHERE id=?`,
                 [newStatus, verifiedBy, req.params.id]
             );
+
+            // Fetch payment details to update customer total_spent
+            const [[payment]] = await pool.query('SELECT customer_id, total_amount FROM payments WHERE id = ?', [req.params.id]);
+            if (payment && payment.customer_id) {
+                await pool.query('UPDATE customers SET total_spent = total_spent + ? WHERE id = ?', [Number(payment.total_amount || 0), payment.customer_id]);
+                await updateCustomerMembership(payment.customer_id, pool);
+            }
         } else {
             await pool.query(
                 `UPDATE payments SET status=? WHERE id=?`,

@@ -1,10 +1,12 @@
+import axios from 'axios';
+import API_URL from '../../api/config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Search, Plus, X, Phone, MessageSquare, ChevronLeft, ChevronRight,
     Star, RefreshCw, Wrench, CreditCard, User, Pencil, Trash2,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/customers';
+const API = `${API_URL}/api/customers`;
 const getAuthHeader = () => ({
     'Content-Type': 'application/json',
     Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -239,7 +241,7 @@ function CustomerDrawer({ customer, idx, onClose }) {
 }
 
 /* ── Customer Form Modal (Add + Edit) ───────────────────── */
-const emptyForm = { full_name: '', phone: '', email: '', line_id: '', line_user_id: '' };
+const emptyForm = { full_name: '', phone: '', email: '', line_id: '' };
 
 /**
  * @param {object|null} editing  – null = add mode, customer object = edit mode
@@ -253,7 +255,6 @@ function CustomerFormModal({ editing, onClose, onSaved }) {
                 phone: editing.phone || '',
                 email: editing.email || '',
                 line_id: editing.line_id || '',
-                line_user_id: editing.line_user_id || '',
             }
             : emptyForm
     );
@@ -311,20 +312,6 @@ function CustomerFormModal({ editing, onClose, onSaved }) {
                                 <input name="line_id" value={form.line_id} onChange={handleField}
                                     className="input-field" placeholder="@lineid" />
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">
-                                LINE User ID <span className="text-[11px] text-slate-400 font-normal">(API · ขึ้นต้นด้วย U)</span>
-                            </label>
-                            <input
-                                name="line_user_id"
-                                value={form.line_user_id}
-                                onChange={handleField}
-                                className="input-field font-mono text-sm"
-                                placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                                maxLength={33}
-                            />
-                            <p className="mt-1 text-[11px] text-slate-400">ใช้สำหรับส่ง Push Message โดยตรง (33 ตัวอักษร)</p>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button onClick={onClose} className="btn-secondary">ยกเลิก</button>

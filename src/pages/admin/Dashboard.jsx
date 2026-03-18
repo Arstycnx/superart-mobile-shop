@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import { useNavigate } from 'react-router-dom';
 import {
     Wrench, Clock, CheckCircle, Banknote,
@@ -9,7 +11,7 @@ import {
 } from 'recharts';
 
 /* ── API ── */
-const API_BASE = 'http://localhost:5000/api/reports';
+const API_BASE = `${API_URL}/api/reports/stats`;
 const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
 /* ── Helpers ── */

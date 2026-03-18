@@ -16,7 +16,7 @@ const getAll = async (req, res) => {
         const { search = '', page = 1, limit = 10 } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
-        let where = ['is_deleted = 0'];
+        let where = ['1=1'];
         const params = [];
         if (search) {
             where.push('(full_name LIKE ? OR phone LIKE ? OR customer_code LIKE ?)');
@@ -43,7 +43,7 @@ const getAll = async (req, res) => {
 const getById = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT * FROM customers WHERE id = ? AND is_deleted = 0 LIMIT 1',
+            'SELECT * FROM customers WHERE id = ? LIMIT 1',
             [req.params.id]
         );
         if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
@@ -128,14 +128,14 @@ const getPayments = async (req, res) => {
 // ─── POST /api/customers ───────────────────────────────────
 const create = async (req, res) => {
     try {
-        const { full_name, phone, email = null, line_id = null, line_user_id = null, address = null } = req.body;
+        const { full_name, phone, email = null, line_id = null, telegram_chat_id = null } = req.body;
         if (!full_name || !phone) {
             return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อและเบอร์โทร' });
         }
         const customer_code = await generateCode();
         const [result] = await pool.query(
-            'INSERT INTO customers (customer_code, full_name, phone, email, line_id, line_user_id) VALUES (?, ?, ?, ?, ?, ?)',
-            [customer_code, full_name, phone, email, line_id, line_user_id]
+            'INSERT INTO customers (customer_code, full_name, phone, email, line_id, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [customer_code, full_name, phone, email, line_id, telegram_chat_id]
         );
         const [rows] = await pool.query('SELECT * FROM customers WHERE id = ?', [result.insertId]);
         res.status(201).json({ success: true, data: rows[0] });
@@ -148,18 +148,18 @@ const create = async (req, res) => {
 // ─── PUT /api/customers/:id ────────────────────────────────
 const update = async (req, res) => {
     try {
-        const { full_name, phone, email, line_id, line_user_id, member_level } = req.body;
+        const { full_name, phone, email, line_id, telegram_chat_id, member_level } = req.body;
         const [existing] = await pool.query('SELECT * FROM customers WHERE id = ? LIMIT 1', [req.params.id]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
         const cur = existing[0];
         await pool.query(
-            `UPDATE customers SET full_name=?, phone=?, email=?, line_id=?, line_user_id=?, member_level=? WHERE id=?`,
+            `UPDATE customers SET full_name=?, phone=?, email=?, line_id=?, telegram_chat_id=?, member_level=? WHERE id=?`,
             [
                 full_name ?? cur.full_name,
                 phone ?? cur.phone,
                 email ?? cur.email,
                 line_id ?? cur.line_id,
-                line_user_id !== undefined ? line_user_id : cur.line_user_id,
+                telegram_chat_id !== undefined ? telegram_chat_id : cur.telegram_chat_id,
                 member_level ?? cur.member_level,
                 req.params.id,
             ]
@@ -172,17 +172,26 @@ const update = async (req, res) => {
     }
 };
 
-// ─── DELETE /api/customers/:id (soft delete) ───────────────
+// ─── DELETE /api/customers/:id ─────────────────────────────
 const remove = async (req, res) => {
+    const conn = await pool.getConnection();
     try {
-        const [result] = await pool.query(
-            'UPDATE customers SET is_deleted = 1 WHERE id = ? AND is_deleted = 0',
-            [req.params.id]
-        );
-        if (result.affectedRows === 0)
+        await conn.beginTransaction();
+        const [rows] = await conn.query('SELECT id FROM customers WHERE id = ? LIMIT 1', [req.params.id]);
+        if (rows.length === 0) {
+            await conn.rollback(); conn.release();
             return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
+        }
+        // Bypass FK checks within this transaction to allow clean cascade deletion
+        await conn.query('SET FOREIGN_KEY_CHECKS=0');
+        await conn.query('DELETE FROM payments WHERE customer_id = ?', [req.params.id]);
+        await conn.query('DELETE FROM repair_orders WHERE customer_id = ?', [req.params.id]);
+        await conn.query('DELETE FROM customers WHERE id = ?', [req.params.id]);
+        await conn.query('SET FOREIGN_KEY_CHECKS=1');
+        await conn.commit(); conn.release();
         res.json({ success: true, message: 'ลบลูกค้าเรียบร้อยแล้ว' });
     } catch (err) {
+        await conn.rollback(); conn.release();
         console.error('[customers.remove]', err);
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
     }

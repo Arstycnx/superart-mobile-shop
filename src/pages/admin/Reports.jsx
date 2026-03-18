@@ -1,20 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import API_URL from '../../api/config';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell,
 } from 'recharts';
 import {
     TrendingUp, TrendingDown, Wrench, DollarSign,
-    Download, AlertTriangle, Plus, ShoppingBag, RefreshCw,
+    Download, AlertTriangle, Plus, ShoppingBag, RefreshCw, Calculator,
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 /* ─── API ──────────────────────────────── */
-const API_BASE = 'http://localhost:5000/api/reports';
+const API_BASE = `${API_URL}/api/reports`;
 const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
 /* ─── Helpers ──────────────────────────── */
 const thb = (n) => '฿' + Number(n || 0).toLocaleString('th-TH');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+
+const calculateTax = (netProfit) => {
+    if (!netProfit || netProfit <= 0) return { tax: 0, text: 'ไม่ต้องเสียภาษี (ไม่มีกำไร)', rate: '0%' };
+    if (netProfit <= 300000) return { tax: 0, text: 'ยกเว้นภาษี (กำไรไม่เกิน 3 แสน)', rate: 'ยกเว้น' };
+    if (netProfit <= 3000000) return { tax: (netProfit - 300000) * 0.15, text: 'เสียภาษี 15% (ส่วนเกิน 3 แสน)', rate: '15%' };
+    return { tax: (2700000 * 0.15) + ((netProfit - 3000000) * 0.20), text: 'เสียภาษี 20% (ส่วนเกิน 3 ล้าน)', rate: '20%' };
+};
 
 // Thai month abbreviations for chart x-axis
 const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -142,9 +153,65 @@ export default function Reports() {
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
     const maxSold = topProducts.reduce((m, p) => Math.max(m, Number(p.sold_count)), 0) || 1;
+    const taxInfo = calculateTax(summary?.net_profit || 0);
+
+    const handleExportPDF = async () => {
+        const sourceElement = document.getElementById('formal-report-print');
+        if (!sourceElement) {
+            alert('ไม่พบเอกสาร');
+            return;
+        }
+
+        try {
+            // 1. Create a wrapper and clone the element
+            const wrapper = document.createElement('div');
+            // Make it visible but hidden from user view (behind current content)
+            wrapper.style.position = 'absolute';
+            wrapper.style.left = '0';
+            wrapper.style.top = '0';
+            wrapper.style.zIndex = '-1000';
+            wrapper.style.opacity = '1';
+            wrapper.style.pointerEvents = 'none';
+
+            // Clone the original element so we don't mess with its display state in React
+            const clone = sourceElement.cloneNode(true);
+            clone.style.display = 'block'; // Ensure clone is visible
+            wrapper.appendChild(clone);
+
+            // Append to body to render
+            document.body.appendChild(wrapper);
+
+            // 2. Wait for styles/images to apply
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // 3. Generate canvas
+            const canvas = await html2canvas(clone, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                windowWidth: 794 // Force A4 width pixel size
+            });
+            const dataUrl = canvas.toDataURL('image/png', 1.0);
+
+            // 4. Clean up the DOM
+            document.body.removeChild(wrapper);
+
+            // 5. Build PDF
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`รายงานสรุปผลประกอบการ_${new Date().toLocaleDateString('th-TH').replace(/\//g, '-')}.pdf`);
+        } catch (error) {
+            console.error('Error generating PDF', error);
+            alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+        }
+    };
 
     return (
-        <div className="space-y-5">
+        <div id="report-dashboard" className="space-y-5">
 
             {/* ── Header ── */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -164,7 +231,7 @@ export default function Reports() {
                     <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100 transition-colors" title="รีเฟรช">
                         <RefreshCw size={15} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0 hover:brightness-110 transition-all"
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0 hover:brightness-110 transition-all"
                         style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
                         <Download size={15} />ส่งออก (PDF)
                     </button>
@@ -172,12 +239,13 @@ export default function Reports() {
             </div>
 
             {/* ── ROW 1: Stat Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard title="รายได้รวม" value={thb(summary?.total_revenue)} icon={DollarSign} iconBg="bg-green-500" trendUp={true} sub={`ช่วง: ${dateTab}`} loading={loading} />
                 <StatCard title="ค่าใช้จ่าย" value={thb(summary?.total_expense)} icon={TrendingDown} iconBg="bg-red-500" sub="ต้นทุนอะไหล่" loading={loading} />
                 <StatCard title="กำไรสุทธิ" value={thb(summary?.net_profit)} icon={TrendingUp} iconBg="bg-emerald-500" trendUp={true} loading={loading}
                     progress={summary ? Math.min(100, Math.round(((summary.net_profit) / (summary.total_revenue || 1)) * 100)) : 0}
                     sub2={`margin ${summary ? Math.round(((summary.net_profit) / (summary.total_revenue || 1)) * 100) : 0}%`} />
+                <StatCard title="ประมาณการภาษี" value={thb(taxInfo.tax)} icon={Calculator} iconBg="bg-amber-500" sub={taxInfo.text} loading={loading} />
                 <StatCard title="งานซ่อมทั้งหมด" value={summary?.total_repairs ?? '—'} icon={Wrench} iconBg="bg-blue-500" sub={`ช่วง: ${dateTab}`} loading={loading} />
             </div>
 
@@ -328,6 +396,100 @@ export default function Reports() {
                     <button className="w-full mt-3 text-xs text-blue-500 hover:text-blue-600 font-medium py-2 hover:bg-blue-50 rounded-xl transition-colors">
                         ดูรายการทั้งหมด →
                     </button>
+                </div>
+            </div>
+
+            {/* ── Formal PDF Report (Hidden) ── */}
+            <div id="formal-report-print" style={{ display: 'none', width: '794px', minHeight: '1123px', backgroundColor: '#ffffff', padding: '40px', color: '#1e293b', fontFamily: 'sans-serif' }}>
+                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 5px 0', color: '#0f172a' }}>รายงานสรุปผลประกอบการ</h1>
+                    <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#334155' }}>ร้าน SuperArt Mobile Repair Shop</h2>
+                    <p style={{ fontSize: '14px', margin: '0 0 5px 0', color: '#475569' }}> 39 ถนนชมดอย ตำบลสุเทพ อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50200</p>
+                    <p style={{ fontSize: '14px', margin: '0 0 5px 0', color: '#475569' }}>รอบระยะเวลา: {dateTab}</p>
+                    <p style={{ fontSize: '12px', margin: 0, color: '#64748b' }}>วันที่พิมพ์รายงาน: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+
+                <div style={{ marginBottom: '30px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px', marginBottom: '15px' }}>1. สรุปภาพรวมทางการเงิน</h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                        <tbody>
+                            <tr>
+                                <td style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>รายได้รวม</td>
+                                <td style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 'bold' }}>{thb(summary?.total_revenue)}</td>
+                            </tr>
+                            <tr>
+                                <td style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>ต้นทุน / ค่าใช้จ่าย</td>
+                                <td style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 'bold', color: '#ef4444' }}>- {thb(summary?.total_expense)}</td>
+                            </tr>
+                            <tr>
+                                <td style={{ padding: '12px 0', borderBottom: '2px solid #cbd5e1', fontWeight: 'bold', fontSize: '15px' }}>กำไรสุทธิ</td>
+                                <td style={{ padding: '12px 0', borderBottom: '2px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', fontSize: '15px', color: '#16a34a' }}>{thb(summary?.net_profit)}</td>
+                            </tr>
+                            <tr>
+                                <td style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>ประมาณการภาษี ({taxInfo.rate})</td>
+                                <td style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 'bold', color: '#f59e0b' }}>{thb(taxInfo.tax)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px', marginBottom: '15px' }}>2. สรุปงานซ่อม (รวม {summary?.total_repairs || 0} รายการ)</h3>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ textAlign: 'left', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>ประเภทงาน</th>
+                                    <th style={{ textAlign: 'center', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>จำนวน</th>
+                                    <th style={{ textAlign: 'right', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>สัดส่วน</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {repairTypes.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center', padding: '10px' }}>ไม่มีข้อมูล</td></tr>}
+                                {repairTypes.map((type, i) => (
+                                    <tr key={i}>
+                                        <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{type.type}</td>
+                                        <td style={{ textAlign: 'center', padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{type.count}</td>
+                                        <td style={{ textAlign: 'right', padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{type.percentage}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px', marginBottom: '15px' }}>3. อะไหล่ที่ใช้บ่อย (Top 5)</h3>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ textAlign: 'left', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>รายการ</th>
+                                    <th style={{ textAlign: 'right', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>จำนวน (ชิ้น)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {topProducts.length === 0 && <tr><td colSpan="2" style={{ textAlign: 'center', padding: '10px' }}>ไม่มีข้อมูล</td></tr>}
+                                {topProducts.slice(0, 5).map((p, i) => (
+                                    <tr key={i}>
+                                        <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{p.name}</td>
+                                        <td style={{ textAlign: 'right', padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{p.sold_count}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ textAlign: 'center', width: '200px' }}>
+                        <div style={{ borderBottom: '1px dotted #94a3b8', marginBottom: '8px', height: '30px' }}></div>
+                        <p style={{ fontSize: '13px', margin: 0 }}>ผู้รายงาน</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>วันที่ ....... /....... /.......</p>
+                    </div>
+                    <div style={{ textAlign: 'center', width: '200px' }}>
+                        <div style={{ borderBottom: '1px dotted #94a3b8', marginBottom: '8px', height: '30px' }}></div>
+                        <p style={{ fontSize: '13px', margin: 0 }}>ผู้ตรวจสอบ / เจ้าของร้าน</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>วันที่ ....... /....... /.......</p>
+                    </div>
                 </div>
             </div>
         </div>

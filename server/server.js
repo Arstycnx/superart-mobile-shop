@@ -6,21 +6,22 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── Raw body capture for LINE webhook signature verification ─────────────────
-// Must be registered BEFORE express.json() so we can read the raw bytes.
-app.use('/api/line/webhook', (req, _res, next) => {
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', (chunk) => { data += chunk; });
-    req.on('end', () => {
-        req.rawBody = data;
-        try { req.body = JSON.parse(data); } catch (_) { req.body = {}; }
-        next();
-    });
-});
-
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173' }));
+const allowedOrigins = [
+    'http://localhost:5173',
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -35,7 +36,7 @@ app.use('/api/repairs', require('./routes/repairs'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/line', require('./routes/lineWebhook'));   // LINE webhook & events
+app.use('/api/telegram', require('./routes/telegramWebhook'));  // Telegram webhook & events
 
 // Health check
 app.get('/', (req, res) => {
