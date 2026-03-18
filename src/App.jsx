@@ -14,7 +14,7 @@ import './index.css';
 
 function App() {
     return (
-        <Router>
+        <Router basename="/~st66223537/">
             <Routes>
                 {/* Auth */}
                 <Route path="/" element={<LoginPage />} />
