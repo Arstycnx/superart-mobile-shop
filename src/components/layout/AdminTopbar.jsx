@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, ChevronDown, LogOut, User } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, Menu } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const pageTitles = {
-    '/admin': 'ภาพรวมระบบ',
+    '/admin': 'Dashboard',
     '/admin/inventory': 'จัดการสินค้า/อะไหล่',
     '/admin/orders': 'รายการแจ้งซ่อม',
     '/admin/customers': 'ข้อมูลลูกค้า',
@@ -12,7 +12,7 @@ const pageTitles = {
     '/admin/settings/notifications': 'ตั้งค่า',
 };
 
-export default function AdminTopbar() {
+export default function AdminTopbar({ onMenuClick }) {
     const location = useLocation();
     const navigate = useNavigate();
     const title = pageTitles[location.pathname] || 'SuperArt';
@@ -38,9 +38,9 @@ export default function AdminTopbar() {
 
     // Close dropdowns when clicking outside
     useEffect(() => {
-        const handler = (e) => { 
-            if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false); 
-            if (notiRef.current && !notiRef.current.contains(e.target)) setNotiOpen(false); 
+        const handler = (e) => {
+            if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false);
+            if (notiRef.current && !notiRef.current.contains(e.target)) setNotiOpen(false);
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
@@ -53,15 +53,22 @@ export default function AdminTopbar() {
     };
 
     return (
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 gap-4 sticky top-0 z-30">
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center px-4 lg:px-6 gap-3 lg:gap-4 sticky top-0 z-20">
+            <button
+                onClick={onMenuClick}
+                className="p-1.5 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
+            >
+                <Menu size={20} />
+            </button>
+
             {/* Page title */}
-            <h2 className="text-base font-bold text-slate-800 flex-1">{title}</h2>
+            <h2 className="text-base font-bold text-slate-800 flex-1 truncate uppercase tracking-wide">{title}</h2>
 
             {/* Right section */}
             <div className="flex items-center gap-4">
                 {/* Bell */}
                 <div className="relative" ref={notiRef}>
-                    <button 
+                    <button
                         onClick={() => setNotiOpen(v => !v)}
                         className={`relative p-2 rounded-lg transition-colors ${notiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}>
                         <Bell size={18} className="text-slate-500" />
@@ -69,11 +76,11 @@ export default function AdminTopbar() {
                     </button>
                     {/* Notification Dropdown */}
                     {notiOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 overflow-hidden transform origin-top-right transition-all">
+                        <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 overflow-hidden transform origin-top-right transition-all">
                             <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
                                 <h3 className="text-sm font-bold text-slate-800">การแจ้งเตือน</h3>
                                 {mockNotifications.length > 0 && (
-                                    <button 
+                                    <button
                                         onClick={() => setMockNotifications([])}
                                         className="text-[10px] text-blue-600 font-medium hover:text-blue-700">
                                         ล้างทั้งหมด

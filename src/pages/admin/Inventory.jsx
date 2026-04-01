@@ -139,12 +139,12 @@ export default function Inventory() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="page-header">
+            <div className="page-header flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center">
                 <div>
                     <h1 className="page-title">คลังสินค้า</h1>
                     <p className="page-subtitle">จัดการอะไหล่และอุปกรณ์ทั้งหมด {total} รายการ</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full sm:w-auto">
                     <button onClick={fetchProducts} className="btn-secondary" title="รีเฟรช">
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                     </button>
@@ -180,21 +180,21 @@ export default function Inventory() {
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-100 flex items-center gap-3 flex-wrap">
-                    <div className="relative flex-1 min-w-[200px] max-w-xs">
+                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative w-full sm:flex-1 sm:max-w-xs">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                             type="text"
                             placeholder="ค้นหาสินค้า, รหัส..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="input-field pl-9"
+                            className="input-field pl-9 w-full"
                         />
                     </div>
                     <select
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="input-field w-auto min-w-[130px]"
+                        className="input-field w-full sm:w-auto sm:min-w-[130px]"
                     >
                         <option value="">ทุกหมวดหมู่</option>
                         {CATEGORIES.map((c) => (
@@ -272,7 +272,7 @@ export default function Inventory() {
             >
                 <div className="space-y-4">
                     {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-text-primary mb-1.5">รหัสสินค้า</label>
                             <input name="product_code" className="input-field" value={form.product_code}
@@ -295,7 +295,7 @@ export default function Inventory() {
                         <input name="description" className="input-field" value={form.description}
                             onChange={handleField} placeholder="รายละเอียดเพิ่มเติม" />
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-text-primary mb-1.5">จำนวนสต็อก</label>
                             <input type="number" name="quantity" className="input-field"

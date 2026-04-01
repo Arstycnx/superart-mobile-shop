@@ -173,10 +173,13 @@ CREATE TABLE IF NOT EXISTS message_templates (
 -- =====================================================
 
 -- ----------------------------------------------------
--- 1. Admin user  (password: admin123)
+-- 1. Users (admin + test account)
 -- ----------------------------------------------------
 INSERT IGNORE INTO users (id, email, password, full_name, role) VALUES
-(1, 'admin@superart.com', '$2b$10$W3H7g1Pw3uprQdtcXleomuWRTwpkb.CFlNvkNNHEJMKzgn35Qy7gW', 'ผู้ดูแลระบบ', 'admin');
+-- password: admin123
+(1, 'admin@superart.com', '$2b$10$W3H7g1Pw3uprQdtcXleomuWRTwpkb.CFlNvkNNHEJMKzgn35Qy7gW', 'ผู้ดูแลระบบ', 'admin'),
+-- password: test1234  (บัญชีทดสอบ)
+(2, 'test@superart.com',  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ผู้ใช้ทดสอบ', 'staff');
 
 -- ----------------------------------------------------
 -- 2. Customers (5 records)

@@ -14,14 +14,13 @@ const navItems = [
     { to: '/admin/settings/notifications', icon: Settings, label: 'ตั้งค่า' },
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ isOpen, setIsOpen }) {
     return (
         <aside
-            className="w-60 min-h-screen flex flex-col flex-shrink-0"
-            style={{ backgroundColor: '#0f1623', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+            className={`w-60 min-h-screen flex flex-col flex-shrink-0 fixed lg:static inset-y-0 left-0 z-40 transform transition-transform duration-300 bg-slate-900 border-r border-slate-800 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         >
             {/* Logo */}
-            <div className="flex items-center gap-3 px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800">
                 <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
                     <Smartphone size={16} className="text-slate-900" />
                 </div>
@@ -35,21 +34,8 @@ export default function AdminSidebar() {
                         key={to}
                         to={to}
                         end={end}
-                        className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-lg my-0.5 text-sm font-medium transition-all relative ${isActive
-                                ? 'text-white'
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                            }`
-                        }
-                        style={({ isActive }) =>
-                            isActive
-                                ? {
-                                    backgroundColor: 'rgba(59,130,246,0.12)',
-                                    borderLeft: '3px solid #3b82f6',
-                                    paddingLeft: '9px',
-                                }
-                                : { borderLeft: '3px solid transparent' }
-                        }
+                        onClick={() => setIsOpen && setIsOpen(false)}
+                        className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                     >
                         <Icon size={17} />
                         <span>{label}</span>

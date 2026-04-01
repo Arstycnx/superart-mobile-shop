@@ -229,7 +229,7 @@ function CreatePaymentModal({ onClose, onCreated }) {
                     </div>
 
                     {/* Amount + Discount */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs text-slate-400 mb-1.5 font-medium">ยอดเงิน (บาท) *</label>
                             <input type="number" min="0" value={amount} placeholder="0"
@@ -254,7 +254,7 @@ function CreatePaymentModal({ onClose, onCreated }) {
                     {/* Payment method */}
                     <div>
                         <label className="block text-xs text-slate-400 mb-2 font-medium">วิธีชำระเงิน</label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {METHOD_OPTS.map(m => (
                                 <button key={m.key} onClick={() => setMethod(m.key)}
                                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all ${method === m.key ? 'text-white' : 'text-slate-400 hover:text-white'}`}
@@ -271,7 +271,7 @@ function CreatePaymentModal({ onClose, onCreated }) {
                     {/* Payment type */}
                     <div>
                         <label className="block text-xs text-slate-400 mb-2 font-medium">ประเภทการชำระ</label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             {TYPE_OPTS.map(t => (
                                 <button key={t.key} onClick={() => setType(t.key)}
                                     className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${type === t.key ? 'text-white' : 'text-slate-400 hover:text-white'}`}

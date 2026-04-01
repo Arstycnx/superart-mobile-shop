@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from './components/layout/AdminLayout';
 import LoginPage from './pages/auth/LoginPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import Dashboard from './pages/admin/Dashboard';
 import Inventory from './pages/admin/Inventory';
 import RepairOrders from './pages/admin/RepairOrders';
@@ -14,10 +15,11 @@ import './index.css';
 
 function App() {
     return (
-        <Router basename="/~st66223537/">
+        <Router>
             <Routes>
                 {/* Auth */}
                 <Route path="/" element={<LoginPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
                 {/* Admin routes - wrapped in AdminLayout */}
                 <Route path="/admin" element={<AdminLayout />}>

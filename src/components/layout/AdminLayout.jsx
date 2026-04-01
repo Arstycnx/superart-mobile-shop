@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import API_URL from '../../api/config';
 import { Outlet, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import AdminTopbar from './AdminTopbar';
 
 export default function AdminLayout() {
     const navigate = useNavigate();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -33,10 +34,19 @@ export default function AdminLayout() {
 
     return (
         <div className="flex min-h-screen bg-bg-light">
-            <AdminSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
-                <AdminTopbar />
-                <main className="flex-1 p-6 animate-fadeIn">
+            <AdminSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+            
+            {/* Mobile backdrop */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            <div className="flex-1 flex flex-col min-w-0 w-full">
+                <AdminTopbar onMenuClick={() => setIsSidebarOpen(true)} />
+                <main className="flex-1 p-4 lg:p-6 animate-fadeIn overflow-x-hidden">
                     <Outlet />
                 </main>
             </div>

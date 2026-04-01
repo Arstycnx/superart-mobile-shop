@@ -1,10 +1,12 @@
+import { Plus } from 'lucide-react';
 import axios from 'axios';
 import API_URL from '../../api/config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    Search, Plus, X, Phone, MessageSquare, ChevronLeft, ChevronRight,
+    Search, X, Phone, MessageSquare, ChevronLeft, ChevronRight,
     Star, RefreshCw, Wrench, CreditCard, User, Pencil, Trash2,
 } from 'lucide-react';
+
 
 const API = `${API_URL}/api/customers`;
 const getAuthHeader = () => ({
@@ -301,7 +303,7 @@ function CustomerFormModal({ editing, onClose, onSaved }) {
                             <input name="phone" value={form.phone} onChange={handleField}
                                 className="input-field" placeholder="08x-xxx-xxxx" />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1.5">อีเมล</label>
                                 <input name="email" value={form.email} onChange={handleField}
@@ -400,34 +402,38 @@ export default function Customers() {
 
     return (
         <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-3 flex-1">
-                    <h1 className="text-xl font-bold text-slate-800">ข้อมูลลูกค้า</h1>
-                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                        {total.toLocaleString()} ราย
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" placeholder="ค้นหาชื่อ, เบอร์โทร..." value={search}
-                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                            className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-slate-50 transition-all" />
-                    </div>
-                    <button onClick={fetchCustomers} className="btn-secondary" title="รีเฟรช">
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                    </button>
-                    <button onClick={() => setFormModal('add')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0 transition-all hover:brightness-110"
-                        style={{ backgroundColor: '#3b82f6' }}>
-                        <Plus size={15} />เพิ่มลูกค้า
-                    </button>
-                </div>
-            </div>
-
-            {/* Table */}
+            {/* Main Container */}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                
+                {/* Header Section */}
+                <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-xl font-bold text-slate-800">ข้อมูลลูกค้า</h1>
+                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                            {total.toLocaleString()} ราย
+                        </span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-auto">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input type="text" placeholder="ค้นหาชื่อ, เบอร์โทร..." value={search}
+                                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                                className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-slate-50 transition-all" />
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <button onClick={fetchCustomers} className="btn-secondary h-[38px] px-3 shrink-0 flex items-center justify-center" title="รีเฟรช">
+                                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                            </button>
+                            <button onClick={() => setFormModal('add')}
+                                className="flex items-center justify-center gap-2 px-4 h-[38px] rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 w-full sm:w-auto shadow-sm"
+                                style={{ backgroundColor: '#3b82f6' }}>
+                                <Plus size={15} />เพิ่มลูกค้า
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Table */}
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>

@@ -90,4 +90,63 @@ const getMe = async (req, res) => {
     }
 };
 
-module.exports = { login, register, getMe };
+// ─── POST /api/auth/change-password (protected) ────────────────
+// ผู้ที่ยังจำรหัสผ่านเก่าได้ (login แล้ว) ต้องการเปลี่ยนรหัสผ่าน
+const changePassword = async (req, res) => {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกรหัสผ่านเก่าและรหัสผ่านใหม่' });
+    }
+    if (new_password.length < 6) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' });
+    }
+
+    try {
+        const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้งาน' });
+        }
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(current_password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'รหัสผ่านเก่าไม่ถูกต้อง' });
+        }
+        const hashed = await bcrypt.hash(new_password, 10);
+        await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id]);
+        return res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ' });
+    } catch (err) {
+        console.error('[changePassword]', err);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
+// ─── POST /api/auth/reset-password (public) ─────────────────────
+// ผู้ที่ลืมรหัสผ่าน — ยืนยันตัวตนด้วย email แล้วตั้งรหัสผ่านใหม่
+// (ในระบบนี้ไม่มี email OTP จึงใช้แค่ email verification เท่านั้น)
+const resetPasswordByEmail = async (req, res) => {
+    const { email, new_password } = req.body;
+
+    if (!email || !new_password) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมลและรหัสผ่านใหม่' });
+    }
+    if (new_password.length < 6) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' });
+    }
+
+    try {
+        const [rows] = await pool.query('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
+        if (rows.length === 0) {
+            // ตอบ success เพื่อป้องกัน email enumeration
+            return res.json({ success: true, message: 'หากอีเมลนี้มีในระบบ จะทำการเปลี่ยนรหัสผ่านให้แล้ว' });
+        }
+        const hashed = await bcrypt.hash(new_password, 10);
+        await pool.query('UPDATE users SET password = ? WHERE email = ?', [hashed, email]);
+        return res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่' });
+    } catch (err) {
+        console.error('[resetPasswordByEmail]', err);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
+module.exports = { login, register, getMe, changePassword, resetPasswordByEmail };

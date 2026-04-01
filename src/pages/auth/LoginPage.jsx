@@ -191,7 +191,11 @@ export default function LoginPage() {
                                     />
                                     <span className="text-sm text-slate-600">จดจำการเข้าสู่ระบบ</span>
                                 </label>
-                                <a href="#" className="text-sm text-slate-600 hover:text-slate-900 underline underline-offset-2 transition-colors">
+                                <a
+                                    href="#"
+                                    onClick={e => { e.preventDefault(); navigate('/forgot-password'); }}
+                                    className="text-sm text-slate-600 hover:text-slate-900 underline underline-offset-2 transition-colors"
+                                >
                                     ลืมรหัสผ่าน?
                                 </a>
                             </div>

@@ -46,19 +46,21 @@ function RepairBadge({ status }) {
 
 function StatCard({ label, value, sub, icon: Icon, accent, subGreen, loading }) {
     const borders = { blue: 'border-blue-400', orange: 'border-orange-400', green: 'border-green-400', slate: 'border-slate-400' };
-    const iconBgs = { blue: 'bg-blue-50 text-blue-500', orange: 'bg-orange-50 text-orange-500', green: 'bg-green-50 text-green-500', slate: 'bg-slate-50 text-slate-500' };
+    const iconBgs = { blue: 'bg-blue-50 text-blue-600', orange: 'bg-amber-50 text-amber-600', green: 'bg-green-50 text-green-600', slate: 'bg-slate-50 text-slate-600' };
     return (
-        <div className={`bg-white rounded-xl border border-slate-200 p-5 flex items-start justify-between border-l-4 ${borders[accent]}`}>
-            <div>
-                <p className="text-xs text-slate-500 mb-1 font-medium">{label}</p>
-                {loading
-                    ? <div className="h-8 w-20 rounded bg-slate-100 animate-pulse mb-1" />
-                    : <p className="text-3xl font-bold text-slate-800 mb-1">{value}</p>}
-                <p className={`text-xs font-medium ${subGreen ? 'text-green-600' : 'text-slate-500'}`}>{sub}</p>
+        <div className={`bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between h-full border-l-4 ${borders[accent]} shadow-sm`}>
+            <div className="flex items-start justify-between mb-4">
+                <div>
+                    <p className="text-xs text-slate-500 mb-1.5 font-semibold uppercase tracking-wider">{label}</p>
+                    {loading
+                        ? <div className="h-8 w-20 rounded bg-slate-100 animate-pulse mb-1" />
+                        : <p className="text-3xl font-bold text-slate-900 mb-1">{value}</p>}
+                </div>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgs[accent]}`}>
+                    <Icon size={20} />
+                </div>
             </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgs[accent]}`}>
-                <Icon size={20} />
-            </div>
+            <p className={`text-xs font-medium ${subGreen ? 'text-green-600' : 'text-slate-500'}`}>{sub}</p>
         </div>
     );
 }
@@ -120,7 +122,7 @@ export default function Dashboard() {
         <div className="space-y-6">
 
             {/* ── Row 1: Stat Cards ── */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard label="งานซ่อมทั้งหมด" value={data?.total_repairs ?? 0} sub="ทั้งหมดในระบบ" icon={Wrench} accent="blue" loading={loading} />
                 <StatCard label="รอดำเนินการ" value={data?.pending_repairs ?? 0} sub="รับ + กำลังซ่อม" icon={Clock} accent="orange" loading={loading} />
                 <StatCard label="ซ่อมเสร็จแล้ว" value={data?.completed_repairs ?? 0} sub="ซ่อม + ส่งมอบ" icon={CheckCircle} accent="green" loading={loading} />
@@ -196,57 +198,57 @@ export default function Dashboard() {
 
             {/* ── Row 3: Recent Repairs Table ── */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 border-b border-slate-100 gap-4 sm:gap-0">
                     <h3 className="font-semibold text-slate-800 text-sm">งานซ่อมล่าสุด</h3>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="relative flex-1 sm:flex-none">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input type="text" placeholder="ค้นหา..." value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="pl-8 pr-4 py-1.5 text-xs border border-slate-200 rounded-lg w-44 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all bg-slate-50" />
+                                className="pl-8 pr-4 py-1.5 text-xs border border-slate-200 rounded-lg w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all bg-slate-50" />
                         </div>
                         <button onClick={() => navigate('/admin/orders')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap">
                             <Plus size={13} />เปิดงานซ่อม
                         </button>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="data-table">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100">
+                            <tr>
                                 {['REPAIR ID', 'ลูกค้า', 'อุปกรณ์', 'อาการเสีย', 'สถานะ', 'วันที่', 'จัดการ'].map(h => (
-                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                    <th key={h} className="whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody>
                             {loading && (
-                                <tr><td colSpan={7} className="text-center py-10 text-sm text-slate-400">
+                                <tr><td colSpan={7} className="text-center py-10 transition-none">
                                     <RefreshCw size={16} className="inline animate-spin mr-2 opacity-50" />กำลังโหลด...
                                 </td></tr>
                             )}
                             {!loading && filtered.length === 0 && (
-                                <tr><td colSpan={7} className="text-center py-10 text-sm text-slate-400">ยังไม่มีรายการซ่อม</td></tr>
+                                <tr><td colSpan={7} className="text-center py-10 text-slate-400 transition-none">ยังไม่มีรายการซ่อม</td></tr>
                             )}
                             {!loading && filtered.map(order => (
-                                <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
-                                    <td className="px-4 py-3 text-xs font-bold text-blue-600 font-mono whitespace-nowrap">{order.order_code}</td>
-                                    <td className="px-4 py-3">
-                                        <p className="text-sm text-slate-700 whitespace-nowrap">{order.customer_name}</p>
-                                        <p className="text-xs text-slate-400">{order.customer_phone}</p>
+                                <tr key={order.id}>
+                                    <td className="font-bold text-blue-600 font-mono whitespace-nowrap">{order.order_code}</td>
+                                    <td>
+                                        <p className="font-semibold text-slate-800 whitespace-nowrap">{order.customer_name}</p>
+                                        <p className="text-xs text-slate-500">{order.customer_phone}</p>
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{order.device_brand} {order.device_model}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
+                                    <td className="whitespace-nowrap font-medium text-slate-700">{order.device_brand} {order.device_model}</td>
+                                    <td className="text-slate-500 max-w-[180px]">
                                         <span className="truncate block" title={order.symptoms}>{order.symptoms || '—'}</span>
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap"><RepairBadge status={order.status} /></td>
-                                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(order.created_at)}</td>
-                                    <td className="px-4 py-3">
+                                    <td className="whitespace-nowrap"><RepairBadge status={order.status} /></td>
+                                    <td className="text-xs font-medium text-slate-500 whitespace-nowrap">{fmtDate(order.created_at)}</td>
+                                    <td>
                                         <button onClick={() => navigate('/admin/orders')}
-                                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
-                                            <Edit2 size={14} />
+                                            className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
+                                            <Edit2 size={15} />
                                         </button>
                                     </td>
                                 </tr>

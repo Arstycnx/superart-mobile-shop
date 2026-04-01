@@ -14,8 +14,7 @@ const getHdr = () => ({
 function Toggle({ on, onChange, disabled }) {
     return (
         <button onClick={() => !disabled && onChange(!on)} disabled={disabled}
-            className="relative w-11 h-6 rounded-full transition-all flex-shrink-0 disabled:opacity-40"
-            style={{ backgroundColor: on ? '#22c55e' : '#374151', boxShadow: on ? '0 0 12px rgba(34,197,94,0.4)' : 'none' }}>
+            className={`relative w-11 h-6 rounded-full transition-all flex-shrink-0 disabled:opacity-40 ${on ? 'bg-green-500' : 'bg-slate-300'}`}>
             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${on ? 'left-6' : 'left-1'}`} />
         </button>
     );
@@ -25,7 +24,7 @@ function Toggle({ on, onChange, disabled }) {
 function TelegramIcon({ size = 20 }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
         </svg>
     );
 }
@@ -33,15 +32,17 @@ function TelegramIcon({ size = 20 }) {
 /* ─── Toast ─────────────────────────── */
 function Toast({ msg, type, onHide }) {
     useEffect(() => { const t = setTimeout(onHide, 3000); return () => clearTimeout(t); }, [onHide]);
-    const colors = { success: '#22c55e', error: '#f87171', info: '#60a5fa' };
+    const bgColors = { success: 'bg-green-50', error: 'bg-red-50', info: 'bg-blue-50' };
+    const textColors = { success: 'text-green-700', error: 'text-red-700', info: 'text-blue-700' };
+    const borders = { success: 'border-green-200', error: 'border-red-200', info: 'border-blue-200' };
+
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold text-white"
-            style={{ backgroundColor: '#1a2a1a', border: `1px solid ${colors[type] || colors.info}`, minWidth: 260 }}>
-            <span style={{ color: colors[type] || colors.info }}>
+        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold border min-w-[260px] ${bgColors[type] || bgColors.info} ${textColors[type] || textColors.info} ${borders[type] || borders.info}`}>
+            <span>
                 {type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}
             </span>
             {msg}
-            <button onClick={onHide} className="ml-auto opacity-60 hover:opacity-100"><X size={13} /></button>
+            <button onClick={onHide} className="ml-auto opacity-60 hover:opacity-100"><X size={14} /></button>
         </div>
     );
 }
@@ -59,37 +60,30 @@ function EditModal({ template, onClose, onSave }) {
         onClose();
     };
 
-    const inp = 'w-full px-3.5 py-2.5 rounded-xl text-sm text-white outline-none transition-all focus:ring-2 focus:ring-green-500/30';
-    const inpStyle = { backgroundColor: '#0a120a', border: '1px solid #1e3a1e' };
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}>
-            <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
-                style={{ backgroundColor: '#111c11', border: '1px solid #1e4a1e' }}>
-                <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: '#1e3a1e' }}>
-                    <h3 className="text-sm font-bold text-white">แก้ไขเทมเพลต</h3>
-                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                        <X size={16} className="text-slate-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl bg-white border border-slate-200">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-800">แก้ไขเทมเพลต</h3>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                        <X size={16} className="text-slate-500" />
                     </button>
                 </div>
                 <div className="p-6 space-y-4">
                     <div>
-                        <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wide">ชื่อเทมเพลต</label>
-                        <input value={name} onChange={e => setName(e.target.value)} className={inp} style={inpStyle} />
+                        <label className="text-xs font-bold text-slate-600 mb-1.5 block tracking-wide">ชื่อเทมเพลต</label>
+                        <input value={name} onChange={e => setName(e.target.value)} className="input-field" />
                     </div>
                     <div>
-                        <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wide">ข้อความ</label>
+                        <label className="text-xs font-bold text-slate-600 mb-1.5 block tracking-wide">ข้อความ</label>
                         <textarea value={text} onChange={e => setText(e.target.value)} rows={4}
-                            className={inp + ' resize-none'} style={inpStyle} />
-                        <p className="text-[11px] text-slate-600 mt-1">ตัวแปร: {'{' + 'ชื่อ'}{'}'}, {'{' + 'model'}{'}'}, {'{' + 'tracking_id'}{'}'}, {'{' + 'est_time'}{'}'}, {'{' + 'cost'}{'}'}</p>
+                            className="input-field resize-none" />
+                        <p className="text-[11px] text-slate-500 mt-1.5">ตัวแปร: {'{' + 'ชื่อ'}{'}'}, {'{' + 'model'}{'}'}, {'{' + 'tracking_id'}{'}'}, {'{' + 'est_time'}{'}'}, {'{' + 'cost'}{'}'}</p>
                     </div>
                 </div>
-                <div className="flex gap-3 px-6 py-4 border-t" style={{ borderColor: '#1e3a1e', backgroundColor: '#0a120a' }}>
-                    <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-slate-700 hover:bg-white/5 transition-colors">ยกเลิก</button>
-                    <button onClick={handleSave} disabled={saving}
-                        className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-50"
-                        style={{ backgroundColor: '#16a34a' }}>
+                <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50">
+                    <button onClick={onClose} className="flex-1 btn-secondary">ยกเลิก</button>
+                    <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary justify-center">
                         {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                     </button>
                 </div>
@@ -226,75 +220,65 @@ export default function NotificationSettings() {
     const upd = (channel, key, val) =>
         setSettings(prev => ({ ...prev, [channel]: { ...prev[channel], [key]: val } }));
 
-    /* ── Shared styles ── */
-    const inp = 'w-full px-3.5 py-2.5 rounded-xl text-sm text-white outline-none transition-all focus:ring-2 focus:ring-green-500/30 font-mono';
-    const inpStyle = { backgroundColor: '#0f2010', border: '1px solid #1a3a1a' };
-    const cardStyle = { backgroundColor: '#111c11', border: '1px solid #1e3a1e' };
-
     const telegram = settings.telegram || {};
 
     return (
-        <div className="min-h-full -m-6 p-6" style={{ backgroundColor: '#0a1a0a' }}>
+        <div className="space-y-6">
 
             {toast && <Toast msg={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
             {editTpl && <EditModal template={editTpl} onClose={() => setEditTpl(null)} onSave={saveTemplate} />}
 
             {/* ── Page header ── */}
-            <div className="flex items-center justify-between mb-7">
+            <div className="flex items-center justify-between mb-2 border-b border-slate-200 pb-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-white mb-1">ตั้งค่าการแจ้งเตือน</h1>
-                    <p className="text-sm text-slate-400">Manage notification channels and automated messages</p>
+                    <h1 className="text-xl font-bold text-slate-800 mb-1">ตั้งค่าการแจ้งเตือน (Notifications)</h1>
+                    <p className="text-sm text-slate-500">จัดการช่องทางการแจ้งเตือน และ ข้อความอัตโนมัติถึงลูกค้า</p>
                 </div>
-                <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-white/5 transition-colors" title="รีเฟรช">
-                    <RefreshCw size={16} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+                <button onClick={fetchAll} className="btn-secondary" title="รีเฟรช">
+                    <RefreshCw size={15} className={`${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
             {loading ? (
                 <div className="space-y-4">
-                    {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-2xl animate-pulse" style={{ backgroundColor: '#111c11' }} />)}
+                    {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-xl bg-slate-100 animate-pulse" />)}
                 </div>
             ) : (
                 <>
                     {/* ══ SECTION 1: Channels ══════════════════════════════════════ */}
-                    <div className="mb-8">
-                        <h2 className="text-xs font-bold text-green-400 uppercase tracking-widest mb-4">
-                            ช่องทางการแจ้งเตือน (Notification Channels)
-                        </h2>
-
+                    <div className="mb-6">
                         <div className="grid grid-cols-1 gap-4">
                             {/* ─── Telegram Card ─── */}
-                            <div className="rounded-2xl p-5" style={cardStyle}>
-                                <div className="flex items-center justify-between mb-4">
+                            <div className={`rounded-xl p-6 border transition-all ${telegram.is_enabled ? 'bg-white border-blue-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-80'}`}>
+                                <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                                            style={{ backgroundColor: '#0a1f2e', border: '1px solid #229ED933' }}>
-                                            <span style={{ color: '#229ED9' }}><TelegramIcon size={20} /></span>
+                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500 border border-blue-100">
+                                            <TelegramIcon size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-white">Telegram Bot</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">Receive real-time notifications via Telegram app.</p>
+                                            <p className="text-sm font-bold text-slate-800">Telegram Bot</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">รับข้อความแจ้งเตือนผ่านแอพ Telegram ทันที</p>
                                         </div>
                                     </div>
                                     <Toggle on={!!telegram.is_enabled} onChange={() => toggleChannel('telegram')} />
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs font-semibold text-slate-400 mb-1.5 block tracking-wide uppercase">Telegram Bot Token</label>
+                                <div className={`space-y-4 transition-all ${!telegram.is_enabled ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
+                                    <div className="max-w-xl">
+                                        <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wide">Telegram Bot Token</label>
                                         <input type="text" value={telegram.access_token || ''}
                                             onChange={e => upd('telegram', 'access_token', e.target.value)}
                                             placeholder="Enter your Telegram Bot Token (from @BotFather)"
-                                            className={inp + ' placeholder-slate-600'} style={inpStyle} />
+                                            className="input-field max-w-lg font-mono text-sm" />
                                     </div>
-                                    <div className="pt-2">
-                                        <label className="text-xs font-semibold text-slate-400 mb-1.5 block tracking-wide uppercase">โดเมนเนมของระบบ (สำหรับ Webhook)</label>
+                                    <div className="pt-2 max-w-xl">
+                                        <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wide">โดเมนเนมของระบบ (สำหรับ Webhook)</label>
                                         <div className="flex gap-2 items-end">
                                             <div className="flex-1 relative">
                                                 <input type="text" id="webhookDomain"
                                                     placeholder="https://your-domain.com"
-                                                    className={inp + ' placeholder-slate-600 pl-10'} style={inpStyle} />
-                                                <span className="absolute left-3.5 top-2.5 text-slate-500">🔗</span>
+                                                    className="input-field pl-10 text-sm font-mono" />
+                                                <span className="absolute left-3.5 top-[9px] text-slate-400"></span>
                                             </div>
                                             <button onClick={async () => {
                                                 const url = document.getElementById('webhookDomain').value;
@@ -313,30 +297,28 @@ export default function NotificationSettings() {
                                                     showToast('ไม่สามารถลงทะเบียน Webhook ได้', 'error');
                                                 }
                                             }}
-                                                className="whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border hover:brightness-110"
-                                                style={{ color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', backgroundColor: 'rgba(34,197,94,0.06)' }}>
+                                                className="btn-secondary text-green-600 hover:text-green-700 border-green-200 hover:bg-green-50 whitespace-nowrap">
                                                 ผูก Webhook
                                             </button>
                                         </div>
                                         <p className="text-[11px] text-slate-500 mt-2">
-                                            *ต้องขึ้นต้นด้วย <code>https://</code> เท่านั้น ระบบจะผูก URL เป็น <code>{'{โดเมน}/api/telegram/webhook'}</code> อัตโนมัติ (หมายเหตุ: **กดบันทึกการตั้งค่าก่อนผูก Webhook หากเพิ่งใส่ Token**)
+                                            *ต้องขึ้นต้นด้วย <code>https://</code> เท่านั้น ระบบจะผูก URL เป็น <code>{'{โดเมน}/api/telegram/webhook'}</code> อัตโนมัติ<br />(หมายเหตุ: **กดบันทึกการตั้งค่าก่อนผูก Webhook หากเพิ่งใส่ Token**)
                                         </p>
                                     </div>
-                                    <div className="flex gap-2 items-end mt-4 pt-4 border-t" style={{ borderColor: 'rgba(34,158,217,0.1)' }}>
+                                    <div className="max-w-xl flex gap-3 items-end mt-4 pt-5 border-t border-slate-100">
                                         <div className="flex-1">
-                                            <label className="text-xs font-semibold text-slate-400 mb-1.5 block tracking-wide uppercase">ส่งทดสอบไปยัง Chat ID</label>
+                                            <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wide">ส่งทดสอบไปยัง Chat ID</label>
                                             <input type="text" placeholder="123456789" id="testChatId"
-                                                className={inp + ' placeholder-slate-600'} style={inpStyle} />
+                                                className="input-field text-sm font-mono" />
                                         </div>
                                         <button onClick={() => {
                                             const cid = document.getElementById('testChatId').value;
                                             if (!cid) return showToast('กรุณาระบุ Chat ID ก่อนทดสอบ', 'error');
                                             handleTest('telegram', cid);
                                         }} disabled={testLoading}
-                                            className="whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border disabled:opacity-50"
-                                            style={{ color: '#229ED9', borderColor: 'rgba(34,158,217,0.4)', backgroundColor: testLoading ? 'transparent' : 'rgba(34,158,217,0.06)' }}>
+                                            className="btn-secondary text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50 whitespace-nowrap">
                                             {testLoading ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
-                                            ส่งข้อความ
+                                            ส่งข้อความทดสอบ
                                         </button>
                                     </div>
                                 </div>
@@ -344,17 +326,12 @@ export default function NotificationSettings() {
                         </div>
                     </div>
 
-
                     {/* ── Footer ── */}
-                    <div className="flex items-center justify-between pt-5 border-t" style={{ borderColor: '#1e3a1e' }}>
-                        <button onClick={fetchAll}
-                            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-300 transition-colors">
-                            <RotateCcw size={14} />รีเฟรชข้อมูล
-                        </button>
-
-                        <button onClick={handleSave} disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
-                            style={{ backgroundColor: '#16a34a' }}>
+                    <div className="flex items-center justify-between pt-5 mt-4 border-t border-slate-200">
+                        <span className="text-xs text-slate-500">
+                            *กรุณากดบันทึกทุกครั้งที่มีการเปลี่ยนแปลงข้อมูล
+                        </span>
+                        <button onClick={handleSave} disabled={saving} className="btn-primary px-8">
                             {saving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
                             {saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
                         </button>

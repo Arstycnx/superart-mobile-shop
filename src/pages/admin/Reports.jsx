@@ -48,31 +48,42 @@ function Skeleton({ h = 'h-8', w = 'w-24' }) {
     return <div className={`${h} ${w} rounded bg-slate-100 animate-pulse`} />;
 }
 
-/* ─── Stat Card ─────────────────────────── */
 function StatCard({ title, value, sub, icon: Icon, iconBg, trend, trendUp, progress, sub2, loading }) {
+    // Map existing iconBg to formal left border colors
+    const borderMap = {
+        'bg-green-500': 'border-green-400',
+        'bg-emerald-500': 'border-emerald-400',
+        'bg-red-500': 'border-red-400',
+        'bg-amber-500': 'border-amber-400',
+        'bg-blue-500': 'border-blue-400'
+    };
+    const bColor = borderMap[iconBg] || 'border-slate-400';
+
     return (
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-            <div className="flex items-start justify-between mb-3">
-                <p className="text-sm font-medium text-slate-500">{title}</p>
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${iconBg}`}>
-                    <Icon size={17} className="text-white" />
-                </div>
-            </div>
-            {loading ? <Skeleton /> : <p className="text-2xl font-bold text-slate-800 mb-1">{value}</p>}
-            {trend && !loading && (
-                <div className={`flex items-center gap-1 text-xs font-semibold mb-1 ${trendUp ? 'text-green-600' : 'text-red-500'}`}>
-                    {trendUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                    <span>{trend}</span>
-                </div>
-            )}
-            {sub && <p className="text-xs text-slate-400">{sub}</p>}
-            {progress != null && !loading && (
-                <>
-                    <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: `${Math.min(progress, 100)}%` }} />
+        <div className={`bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between h-full border-l-4 ${bColor} shadow-sm`}>
+            <div>
+                <div className="flex items-start justify-between mb-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${iconBg}`}>
+                        <Icon size={17} className="text-white" />
                     </div>
-                    {sub2 && <p className="text-xs text-slate-400 mt-1">{sub2}</p>}
-                </>
+                </div>
+                {loading ? <Skeleton /> : <p className="text-3xl font-bold text-slate-900 mb-1">{value}</p>}
+                {trend && !loading && (
+                    <div className={`flex items-center gap-1 text-xs font-semibold mb-2 ${trendUp ? 'text-green-600' : 'text-red-500'}`}>
+                        {trendUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                        <span>{trend}</span>
+                    </div>
+                )}
+                {sub && <p className="text-xs text-slate-500 font-medium">{sub}</p>}
+            </div>
+            {progress != null && !loading && (
+                <div className="mt-4">
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-1.5">
+                        <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                    </div>
+                    {sub2 && <p className="text-xs text-slate-400 font-medium">{sub2}</p>}
+                </div>
             )}
         </div>
     );
@@ -214,27 +225,29 @@ export default function Reports() {
         <div id="report-dashboard" className="space-y-5">
 
             {/* ── Header ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-3 flex-1">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
                     <h1 className="text-xl font-bold text-slate-800">รายงานสรุป</h1>
                     <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">Dashboard</span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-full sm:w-auto overflow-x-auto">
                         {DATE_TABS.map(t => (
                             <button key={t} onClick={() => setDateTab(t)}
-                                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${dateTab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${dateTab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                 {t}
                             </button>
                         ))}
                     </div>
-                    <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100 transition-colors" title="รีเฟรช">
-                        <RefreshCw size={15} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                    <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0 hover:brightness-110 transition-all"
-                        style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
-                        <Download size={15} />ส่งออก (PDF)
-                    </button>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button onClick={fetchAll} className="p-2 sm:p-2 bg-white sm:bg-transparent border border-slate-200 sm:border-transparent rounded-xl hover:bg-slate-100 transition-colors flex flex-shrink-0 items-center justify-center shadow-sm sm:shadow-none h-[36px] min-w-[36px]" title="รีเฟรช">
+                            <RefreshCw size={15} className={`text-slate-500 sm:text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+                        </button>
+                        <button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 h-[36px] rounded-xl text-sm font-semibold text-white hover:brightness-110 transition-all shadow-sm"
+                            style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
+                            <Download size={15} />ส่งออก (PDF)
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -253,12 +266,12 @@ export default function Reports() {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
                 {/* Bar chart — Revenue vs Expense */}
-                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-sm font-bold text-slate-700">รายได้ vs ค่าใช้จ่าย (รายเดือน)</h2>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block" /> รายได้</span>
-                            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-slate-300 inline-block" /> ค่าใช้จ่าย</span>
+                <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between h-full">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">รายได้ vs ค่าใช้จ่าย (รายเดือน)</h2>
+                        <div className="flex items-center gap-4 text-xs font-semibold text-slate-600">
+                            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block drop-shadow-sm" /> รายได้</span>
+                            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-slate-300 inline-block drop-shadow-sm" /> ค่าใช้จ่าย</span>
                         </div>
                     </div>
                     {revenue.length > 0 ? (
@@ -319,83 +332,108 @@ export default function Reports() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
                 {/* Top Products */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                        <ShoppingBag size={15} className="text-blue-500" />
-                        <h2 className="text-sm font-bold text-slate-700">อะไหล่ที่ใช้บ่อย Top 5</h2>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
+                    <div className="flex items-center gap-2 mb-0 px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50">
+                        <ShoppingBag size={16} className="text-blue-600" />
+                        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">อะไหล่ที่ใช้บ่อย Top 5</h2>
                     </div>
-                    <div className="space-y-3.5">
-                        {loading && [1, 2, 3, 4, 5].map(i => <div key={i} className="h-8 rounded bg-slate-100 animate-pulse" />)}
-                        {!loading && topProducts.length === 0 && <p className="text-sm text-slate-400 text-center py-4">ยังไม่มีข้อมูล</p>}
-                        {!loading && topProducts.map((p, i) => (
-                            <div key={p.name}>
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs text-slate-600 truncate pr-2">{p.name}</span>
-                                    <span className="text-xs font-bold text-slate-700 flex-shrink-0">{p.sold_count}</span>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                    <div className="h-full rounded-full transition-all"
-                                        style={{ width: `${(Number(p.sold_count) / maxSold) * 100}%`, backgroundColor: PIE_COLORS[i] }} />
-                                </div>
-                            </div>
-                        ))}
+                    <div className="p-0 overflow-x-auto flex-1">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th className="w-2/3">รายการอะไหล่</th>
+                                    <th className="text-right w-1/3">ชิ้น</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading && (
+                                    <tr><td colSpan={2} className="text-center py-6 text-slate-400">กำลังโหลด...</td></tr>
+                                )}
+                                {!loading && topProducts.length === 0 && (
+                                    <tr><td colSpan={2} className="text-center py-6 text-slate-400">ยังไม่มีข้อมูล</td></tr>
+                                )}
+                                {!loading && topProducts.map((p, i) => (
+                                    <tr key={p.name}>
+                                        <td className="font-semibold text-slate-800">{p.name}</td>
+                                        <td className="text-right font-bold text-blue-600">{p.sold_count}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
                 {/* Cancellations */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-sm font-bold text-slate-700">ยกเลิกรายการ</h2>
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-100">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-0 px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50">
+                        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">ยกเลิกรายการ</h2>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200">
                             {cancels.length} รายการ
                         </span>
                     </div>
-                    <div>
-                        <div className="grid grid-cols-3 gap-2 mb-2 pb-2 border-b border-slate-100">
-                            {['ID', 'ลูกค้า', 'เหตุผล'].map(h => <span key={h} className="text-[11px] font-semibold text-slate-400 uppercase">{h}</span>)}
-                        </div>
-                        {loading && <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-6 rounded bg-slate-100 animate-pulse" />)}</div>}
-                        {!loading && cancels.length === 0 && <p className="text-sm text-slate-400 text-center py-4">ไม่มีรายการยกเลิก</p>}
-                        <div className="space-y-3">
-                            {!loading && cancels.map((c) => (
-                                <div key={c.id} className="grid grid-cols-3 gap-2 items-center">
-                                    <span className="text-xs font-mono text-blue-500 truncate">{c.order_code}</span>
-                                    <span className="text-xs text-slate-600 truncate">{c.customer_name}</span>
-                                    <span className="text-xs text-slate-500 truncate">{c.reason || '—'}</span>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="p-0 overflow-x-auto flex-1">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>ลูกค้า</th>
+                                    <th>เหตุผล</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading && (
+                                    <tr><td colSpan={3} className="text-center py-6 text-slate-400">กำลังโหลด...</td></tr>
+                                )}
+                                {!loading && cancels.length === 0 && (
+                                    <tr><td colSpan={3} className="text-center py-6 text-slate-400">ไม่มีรายการยกเลิก</td></tr>
+                                )}
+                                {!loading && cancels.map((c) => (
+                                    <tr key={c.id}>
+                                        <td className="font-mono text-sm font-bold text-red-600">{c.order_code}</td>
+                                        <td className="font-semibold text-slate-800 break-words">{c.customer_name}</td>
+                                        <td className="text-slate-500 text-sm">{c.reason || '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
                 {/* Low Stock */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                        <AlertTriangle size={15} className="text-amber-500" />
-                        <h2 className="text-sm font-bold text-slate-700">สต็อกใกล้หมด!</h2>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-0 px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle size={16} className="text-amber-500" />
+                            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">สต็อกใกล้หมด!</h2>
+                        </div>
                     </div>
-                    <div className="space-y-3">
-                        {loading && [1, 2].map(i => <div key={i} className="h-14 rounded-xl bg-slate-100 animate-pulse" />)}
-                        {!loading && lowStock.length === 0 && <p className="text-sm text-slate-400 text-center py-4">สต็อกปกติ ✓</p>}
-                        {!loading && lowStock.map((item) => (
-                            <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
-                                <div className="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-lg">📱</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-slate-700 truncate">{item.product_name}</p>
-                                    <p className="text-[11px] text-red-500 font-medium">เหลือ {item.quantity} ชิ้น</p>
-                                </div>
-                                <button className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white flex-shrink-0 hover:brightness-110 transition-all"
-                                    style={{ backgroundColor: '#f97316' }}>
-                                    <Plus size={11} />เติมของ
-                                </button>
-                            </div>
-                        ))}
+                    <div className="p-0 overflow-x-auto flex-1">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>รายการ</th>
+                                    <th className="text-right">เหลือ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading && (
+                                    <tr><td colSpan={2} className="text-center py-6 text-slate-400">กำลังโหลด...</td></tr>
+                                )}
+                                {!loading && lowStock.length === 0 && (
+                                    <tr><td colSpan={2} className="text-center py-6 text-slate-400">สต็อกปกติ ✓</td></tr>
+                                )}
+                                {!loading && lowStock.map((item) => (
+                                    <tr key={item.id}>
+                                        <td className="font-semibold text-slate-800">{item.product_name}</td>
+                                        <td className="text-right font-bold text-red-600">{item.quantity}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                    <button className="w-full mt-3 text-xs text-blue-500 hover:text-blue-600 font-medium py-2 hover:bg-blue-50 rounded-xl transition-colors">
+                    <a href="/admin/inventory" className="block text-center text-xs text-blue-600 font-bold py-3 bg-slate-50 hover:bg-slate-100 transition-colors border-t border-slate-100 uppercase tracking-widest mt-auto">
                         ดูรายการทั้งหมด →
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -439,18 +477,18 @@ export default function Reports() {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                             <thead>
                                 <tr>
-                                    <th style={{ textAlign: 'left', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>ประเภทงาน</th>
-                                    <th style={{ textAlign: 'center', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>จำนวน</th>
-                                    <th style={{ textAlign: 'right', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>สัดส่วน</th>
+                                    <th style={{ textAlign: 'left', padding: '10px 12px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>ประเภทงาน</th>
+                                    <th style={{ textAlign: 'center', padding: '10px 12px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>จำนวน</th>
+                                    <th style={{ textAlign: 'right', padding: '10px 12px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>สัดส่วน</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {repairTypes.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center', padding: '10px' }}>ไม่มีข้อมูล</td></tr>}
+                                {repairTypes.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center', padding: '12px' }}>ไม่มีข้อมูล</td></tr>}
                                 {repairTypes.map((type, i) => (
-                                    <tr key={i}>
-                                        <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{type.type}</td>
-                                        <td style={{ textAlign: 'center', padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{type.count}</td>
-                                        <td style={{ textAlign: 'right', padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{type.percentage}%</td>
+                                    <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#334155' }}>{type.type}</td>
+                                        <td style={{ textAlign: 'center', padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#0f172a', fontWeight: 'bold' }}>{type.count}</td>
+                                        <td style={{ textAlign: 'right', padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{type.percentage}%</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -462,16 +500,16 @@ export default function Reports() {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                             <thead>
                                 <tr>
-                                    <th style={{ textAlign: 'left', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>รายการ</th>
-                                    <th style={{ textAlign: 'right', padding: '6px', backgroundColor: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>จำนวน (ชิ้น)</th>
+                                    <th style={{ textAlign: 'left', padding: '10px 12px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>รายการ</th>
+                                    <th style={{ textAlign: 'right', padding: '10px 12px', backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>จำนวน (ชิ้น)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {topProducts.length === 0 && <tr><td colSpan="2" style={{ textAlign: 'center', padding: '10px' }}>ไม่มีข้อมูล</td></tr>}
+                                {topProducts.length === 0 && <tr><td colSpan="2" style={{ textAlign: 'center', padding: '12px' }}>ไม่มีข้อมูล</td></tr>}
                                 {topProducts.slice(0, 5).map((p, i) => (
-                                    <tr key={i}>
-                                        <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{p.name}</td>
-                                        <td style={{ textAlign: 'right', padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{p.sold_count}</td>
+                                    <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#334155' }}>{p.name}</td>
+                                        <td style={{ textAlign: 'right', padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#0f172a', fontWeight: 'bold' }}>{p.sold_count}</td>
                                     </tr>
                                 ))}
                             </tbody>

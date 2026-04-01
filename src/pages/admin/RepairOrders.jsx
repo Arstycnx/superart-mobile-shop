@@ -295,7 +295,7 @@ function CreateRepairModal({ onClose, onCreated }) {
                         </div>
 
                         {/* Device type + Brand + Model */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ประเภท *</label>
                                 <select value={form.device_type} onChange={setField('device_type')}
@@ -316,13 +316,13 @@ function CreateRepairModal({ onClose, onCreated }) {
                         </div>
 
                         {/* Color + Symptoms */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">สี (ไม่บังคับ)</label>
                                 <input type="text" value={form.device_color} onChange={setField('device_color')}
                                     placeholder="Black, Gold..." className={inputCls} style={inputStyle} />
                             </div>
-                            <div className="col-span-2">
+                            <div className="sm:col-span-2">
                                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">อาการเสีย *</label>
                                 <textarea value={form.symptoms} onChange={setField('symptoms')}
                                     rows={2} placeholder="หน้าจอแตก, ชาร์จไม่เข้า, แบตเตอรี่เสื่อม..."
@@ -351,7 +351,7 @@ function CreateRepairModal({ onClose, onCreated }) {
                         </div>
 
                         {/* Cost */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ประเมินราคาอะไหล่ (฿)</label>
                                 <input type="number" min="0" value={form.estimated_cost} onChange={setField('estimated_cost')}

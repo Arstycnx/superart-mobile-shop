@@ -40,7 +40,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
                     </button>
                 </div>
                 {/* Body */}
-                <div className="px-6 py-4">{children}</div>
+                <div className="px-6 py-4 max-h-[calc(100vh-8rem)] overflow-y-auto custom-scrollbar">{children}</div>
             </div>
         </div>
     );
