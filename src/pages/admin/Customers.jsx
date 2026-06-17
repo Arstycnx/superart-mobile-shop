@@ -46,27 +46,29 @@ function Avatar({ name, size = 'md', idx = 0 }) {
     );
 }
 
-/* ── Repair timeline inside drawer ─────────────────────── */
-function RepairTimeline({ repairs }) {
-    if (!repairs.length) return <p className="text-sm text-slate-400 text-center py-10">ไม่มีประวัติการซ่อม</p>;
+/* ── Unified History timeline inside drawer ─────────────────────── */
+function HistoryTimeline({ items }) {
+    if (!items.length) return <p className="text-sm text-slate-400 text-center py-10">ไม่มีประวัติ</p>;
     return (
         <div className="space-y-0">
-            {repairs.map((r, i) => {
-                const m = STATUS_META[r.status] || STATUS_META.completed;
-                const date = r.received_date ? new Date(r.received_date).toLocaleDateString('th-TH') : '—';
+            {items.map((r, i) => {
+                const isClaim = r.type === 'claim';
+                const color = isClaim ? '#f43f5e' : (STATUS_META[r.status]?.color || STATUS_META.completed.color);
+                const label = isClaim ? 'รายการเคลม' : (STATUS_META[r.status]?.label || STATUS_META.completed.label);
+                const date = r.date ? new Date(r.date).toLocaleDateString('th-TH') : '—';
                 return (
-                    <div key={r.id} className="flex gap-3">
+                    <div key={`${r.type}-${r.id}`} className="flex gap-3">
                         <div className="flex flex-col items-center">
                             <div className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
-                                style={{ backgroundColor: m.color, boxShadow: `0 0 8px ${m.color}70` }} />
-                            {i < repairs.length - 1 && <div className="w-px flex-1 my-1 bg-slate-200" style={{ minHeight: 40 }} />}
+                                style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}70` }} />
+                            {i < items.length - 1 && <div className="w-px flex-1 my-1 bg-slate-200" style={{ minHeight: 40 }} />}
                         </div>
                         <div className="pb-4 last:pb-0 flex-1">
                             <div className="flex items-center justify-between mb-1">
                                 <span className="text-xs text-slate-500">{date}</span>
                                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: m.color + '25', color: m.color, border: `1px solid ${m.color}50` }}>
-                                    {m.label}
+                                    style={{ backgroundColor: color + '25', color: color, border: `1px solid ${color}50` }}>
+                                    {label}
                                 </span>
                             </div>
                             <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/60">
@@ -75,8 +77,7 @@ function RepairTimeline({ repairs }) {
                                 </p>
                                 <p className="text-xs text-slate-500 mb-2 leading-relaxed">{r.symptoms || '—'}</p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-400 font-mono">{r.order_code}</span>
-                                    <span className="text-sm font-bold text-slate-700">{thb(r.final_cost || r.estimated_cost)}</span>
+                                    <span className="text-xs text-slate-400 font-mono">{r.code}</span>
                                 </div>
                             </div>
                         </div>
@@ -113,11 +114,11 @@ function PaymentList({ payments }) {
 }
 
 /* ── Customer Drawer ────────────────────────────────────── */
-const TABS = ['ประวัติการซ่อม', 'การชำระเงิน'];
+const TABS = ['ประวัติทั้งหมด', 'การชำระเงิน'];
 
 function CustomerDrawer({ customer, idx, onClose }) {
     const [activeTab, setActiveTab] = useState(0);
-    const [repairs, setRepairs] = useState([]);
+    const [history, setHistory] = useState([]);
     const [payments, setPayments] = useState([]);
     const [loadingTab, setLoadingTab] = useState(false);
     const lc = LEVEL_STYLE[customer.member_level] || LEVEL_STYLE.bronze;
@@ -126,9 +127,9 @@ function CustomerDrawer({ customer, idx, onClose }) {
         setLoadingTab(true);
         try {
             if (tab === 0) {
-                const r = await fetch(`${API}/${customer.id}/repairs`);
+                const r = await fetch(`${API}/${customer.id}/history`);
                 const d = await r.json();
-                setRepairs(d.data || []);
+                setHistory(d.data || []);
             } else {
                 const r = await fetch(`${API}/${customer.id}/payments`);
                 const d = await r.json();
@@ -161,14 +162,18 @@ function CustomerDrawer({ customer, idx, onClose }) {
                 <div className="px-5 py-5 border-b border-slate-100 flex-shrink-0">
                     <div className="flex items-start gap-4 mb-4">
                         <Avatar name={customer.full_name} size="lg" idx={idx} />
-                        <div className="flex-1">
-                            <h3 className="text-xl font-bold text-slate-900 mb-1">{customer.full_name}</h3>
-                            <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-1">
-                                <Phone size={13} />{customer.phone}
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-xl font-bold text-slate-900 mb-1 truncate">{customer.full_name}</h3>
+                            <div className="flex flex-col gap-1 text-xs text-slate-500 mb-2 whitespace-pre-wrap">
+                                <div className="flex items-center gap-1.5"><Phone size={13} />{customer.phone} (หลัก)</div>
+                                {customer.phone2 && <div className="flex items-center gap-1.5"><Phone size={13} /> {customer.phone2}</div>}
+                                {customer.phone3 && <div className="flex items-center gap-1.5"><Phone size={13} /> {customer.phone3}</div>}
+                                {customer.phone4 && <div className="flex items-center gap-1.5"><Phone size={13} /> {customer.phone4}</div>}
+                                {customer.phone5 && <div className="flex items-center gap-1.5"><Phone size={13} /> {customer.phone5}</div>}
                             </div>
                             {customer.line_id && (
-                                <div className="flex items-center gap-1.5 text-sm text-emerald-500">
-                                    <MessageSquare size={13} />{customer.line_id}
+                                <div className="flex items-center gap-1.5 text-sm text-emerald-500 truncate">
+                                    <MessageSquare size={13} className="flex-shrink-0" /> <span className="truncate">{customer.line_id}</span>
                                 </div>
                             )}
                         </div>
@@ -216,7 +221,7 @@ function CustomerDrawer({ customer, idx, onClose }) {
                     {loadingTab
                         ? <p className="text-sm text-slate-400 text-center py-10">กำลังโหลด...</p>
                         : activeTab === 0
-                            ? <RepairTimeline repairs={repairs} />
+                            ? <HistoryTimeline items={history} />
                             : <PaymentList payments={payments} />
                     }
                 </div>
@@ -241,7 +246,7 @@ function CustomerDrawer({ customer, idx, onClose }) {
 }
 
 /* ── Customer Form Modal (Add + Edit) ───────────────────── */
-const emptyForm = { full_name: '', phone: '', email: '', line_id: '' };
+const emptyForm = { full_name: '', phone: '', phone2: '', phone3: '', phone4: '', phone5: '', email: '', line_id: '' };
 
 /**
  * @param {object|null} editing  – null = add mode, customer object = edit mode
@@ -253,6 +258,10 @@ function CustomerFormModal({ editing, onClose, onSaved }) {
             ? {
                 full_name: editing.full_name || '',
                 phone: editing.phone || '',
+                phone2: editing.phone2 || '',
+                phone3: editing.phone3 || '',
+                phone4: editing.phone4 || '',
+                phone5: editing.phone5 || '',
                 email: editing.email || '',
                 line_id: editing.line_id || '',
             }
@@ -296,10 +305,28 @@ function CustomerFormModal({ editing, onClose, onSaved }) {
                             <input name="full_name" value={form.full_name} onChange={handleField}
                                 className="input-field" placeholder="สมชาย ใจดี" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์ *</label>
-                            <input name="phone" value={form.phone} onChange={handleField}
-                                className="input-field" placeholder="08x-xxx-xxxx" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์ (หลัก) *</label>
+                                <input name="phone" value={form.phone} onChange={handleField}
+                                    className="input-field" placeholder="08x-xxx-xxxx" />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์ 2</label>
+                                <input name="phone2" value={form.phone2} onChange={handleField} className="input-field" placeholder="เบอร์สำรอง (ถ้ามี)" />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์ 3</label>
+                                <input name="phone3" value={form.phone3} onChange={handleField} className="input-field" placeholder="เบอร์สำรอง (ถ้ามี)" />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์ 4</label>
+                                <input name="phone4" value={form.phone4} onChange={handleField} className="input-field" placeholder="เบอร์สำรอง (ถ้ามี)" />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์ 5</label>
+                                <input name="phone5" value={form.phone5} onChange={handleField} className="input-field" placeholder="เบอร์สำรอง (ถ้ามี)" />
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -409,11 +436,11 @@ export default function Customers() {
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="relative">
+                    <div className="relative flex-1 sm:flex-none">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input type="text" placeholder="ค้นหาชื่อ, เบอร์โทร..." value={search}
                             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                            className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-slate-50 transition-all" />
+                            className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-slate-50 transition-all" />
                     </div>
                     <button onClick={fetchCustomers} className="btn-secondary" title="รีเฟรช">
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />

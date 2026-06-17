@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import API_URL from '../../api/config';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,7 @@ import {
     Wrench, Smartphone, Tablet, Laptop, MoreHorizontal,
     Camera, X, ChevronLeft, ChevronRight, CheckCircle,
     Home, DollarSign, Bell, Phone, Check, Square, CheckSquare,
+    Search, UserCheck, Clock, AlertCircle, History,
 } from 'lucide-react';
 
 /* ─────────────────────────────── */
@@ -18,13 +19,229 @@ const DEVICE_TYPES = [
     { key: 'other', label: 'อื่นๆ', icon: MoreHorizontal },
 ];
 
-const BRANDS = ['Apple', 'Samsung', 'Huawei', 'OPPO', 'Vivo', 'Xiaomi', 'อื่นๆ'];
+const BRANDS = [
+    'ALCATEL', 'ASUS', 'BENCO', 'BLACKBERRY', 'CONDOR', 'COOLPAD', 'CUBOT', 'ELEPHONE',
+    'GIONEE', 'GOOGLE PIXEL', 'HOTWAV', 'HTC', 'HUAWEI', 'INFINIX', 'INFOCUS', 'IPAD',
+    'IPHONE', 'ITEL', 'JIO', 'LAVA', 'LENOVO', 'LG', 'MAXTRON', 'MEIZU', 'MICROMAX',
+    'MICROSOFT', 'MOTOROLA', 'NEFFOS', 'NOKIA', 'NOTHING PHONE', 'ONEPLUS', 'OPPO',
+    'PRESTIGIO', 'RAZER', 'REALME', 'SAMSUNG', 'SHARP', 'SONY', 'TECNO', 'TEXET',
+    'UMIDIGI', 'VESTEL', 'VIVO', 'XIAOMI', 'XOLO', 'ZTE', 'OTHERS'
+];
+
+const SYMPTOM_CATEGORIES = [
+    {
+        label: '📱 หมวดหน้าจอและระบบสัมผัส (Screen & Touch)',
+        options: [
+            'หน้าจอแตก (เปลี่ยนจอชุด)',
+            'ลอกกระจกหน้าจอ (จอในยังใช้ได้)',
+            'ทัชสกรีนไม่ได้ / ทัชเพี้ยน / ทัชรวน',
+            'หน้าจอเป็นเส้น / มีจุดดำ / สีเพี้ยน',
+            'จอมืด / จอขาว / หน้าจอกะพริบ'
+        ]
+    },
+    {
+        label: '🔋 หมวดแบตเตอรี่และระบบไฟ (Battery & Power)',
+        options: [
+            'แบตเตอรี่เสื่อม / แบตหมดไว',
+            'แบตเตอรี่บวม (ดันฝาหลัง/ดันจอ)',
+            'ชาร์จไม่เข้า / ชาร์จเข้าช้าผิดปกติ',
+            'รูชาร์จหลวม / ต้องขยับสายถึงจะชาร์จเข้า',
+            'เครื่องเปิดไม่ติด / ช็อต',
+            'เครื่องดับเอง / เครื่องรีสตาร์ทวน (Bootloop)'
+        ]
+    },
+    {
+        label: '🔊 หมวดเสียงและกล้อง (Audio & Camera)',
+        options: [
+            'ลำโพงล่างไม่ดัง / เสียงแตก (ฟังเพลง/ดูคลิปไม่ได้ยิน)',
+            'ลำโพงบนไม่ดัง (แนบหูคุยโทรศัพท์ไม่ได้ยิน)',
+            'ไมค์เสีย / ปลายทางไม่ได้ยินเสียงเรา',
+            'กล้องหลังเสีย / ภาพสั่น / โฟกัสไม่ได้',
+            'กล้องหน้าเสีย / จอมืด',
+            'กระจกเลนส์กล้องแตก'
+        ]
+    },
+    {
+        label: '⚙️ หมวดฮาร์ดแวร์และตัวเครื่อง (Hardware & Body)',
+        options: [
+            'ตกน้ำ / โดนความชื้น / น้ำเข้าเครื่อง',
+            'ฝาหลังแตก / เปลี่ยนบอดี้ใหม่',
+            'ปุ่ม Power (เปิด-ปิด) กดไม่ได้ / กดยาก',
+            'ปุ่มเพิ่ม-ลดเสียง (Volume) กดไม่ได้',
+            'เครื่องร้อนจัดผิดปกติ',
+            'ถาดซิมหัก / ติดคาเครื่อง'
+        ]
+    },
+    {
+        label: '🌐 หมวดซอฟต์แวร์และเครือข่าย (Software & Network)',
+        options: [
+            'ลืมรหัสผ่านหน้าจอ / ปลดล็อคหน้าจอ',
+            'ติดล็อคบัญชี (ติด iCloud / Gmail / Google Account)',
+            'เครื่องค้าง / เครื่องรวน / ซอฟต์แวร์มีปัญหา',
+            'ไม่อ่านซิม / ไม่มีสัญญาณโทรศัพท์',
+            'เชื่อมต่อ Wi-Fi หรือ Bluetooth ไม่ได้'
+        ]
+    }
+];
 
 const STEPS = [
     { num: 1, label: 'ข้อมูลส่วนตัว' },
     { num: 2, label: 'รายละเอียด' },
     { num: 3, label: 'ยืนยันข้อมูล' },
 ];
+
+/* ─────────────────────────────── */
+/*  CUSTOMER SEARCH BOX           */
+/* ─────────────────────────────── */
+function CustomerSearch({ onSelect }) {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
+    const [selected, setSelected] = useState(null);
+    const ref = useRef();
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // Debounce search
+    useEffect(() => {
+        if (!query.trim() || query.length < 2) { setResults([]); setOpen(false); return; }
+        const t = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const res = await fetch(`${API_URL}/api/customers?search=${encodeURIComponent(query)}&limit=8`);
+                const d = await res.json();
+                if (d.success) { setResults(d.data || []); setOpen(true); }
+            } catch { /* noop */ }
+            setLoading(false);
+        }, 380);
+        return () => clearTimeout(t);
+    }, [query]);
+
+    const handleSelect = (cust) => {
+        setSelected(cust);
+        setQuery(cust.full_name);
+        setOpen(false);
+        onSelect(cust);
+    };
+
+    const handleClear = () => {
+        setSelected(null);
+        setQuery('');
+        setResults([]);
+        onSelect(null);
+    };
+
+    // Validate completeness of customer data
+    const getMissingFields = (c) => {
+        const missing = [];
+        if (!c.full_name?.trim()) missing.push('ชื่อ');
+        if (!c.phone?.trim()) missing.push('เบอร์โทร');
+        return missing;
+    };
+
+    return (
+        <div className="rounded-2xl border-2 p-4 mb-2" style={{ backgroundColor: '#fff7ed', borderColor: '#fed7aa' }}>
+            <div className="flex items-center gap-2 mb-3">
+                <History size={15} className="text-orange-500" />
+                <p className="text-sm font-bold text-orange-700">ลูกค้าเดิม? ค้นหาข้อมูลก่อน</p>
+                <span className="text-xs text-orange-400 font-normal">(ไม่บังคับ)</span>
+            </div>
+
+            <div className="relative" ref={ref}>
+                <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={e => { setQuery(e.target.value); setSelected(null); }}
+                        placeholder="พิมพ์ชื่อ หรือ เบอร์โทร เพื่อค้นหา..."
+                        className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-orange-200 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 bg-white transition-all"
+                    />
+                    {query && (
+                        <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded-full transition-colors">
+                            <X size={13} className="text-slate-400" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Dropdown results */}
+                {open && (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl border border-slate-200 shadow-xl z-20 overflow-hidden max-h-64 overflow-y-auto">
+                        {loading && (
+                            <div className="px-4 py-3 text-sm text-slate-400 text-center">กำลังค้นหา...</div>
+                        )}
+                        {!loading && results.length === 0 && (
+                            <div className="px-4 py-3 text-sm text-slate-400 text-center flex flex-col items-center gap-1">
+                                <AlertCircle size={16} className="text-slate-300" />
+                                ไม่พบข้อมูลลูกค้า
+                            </div>
+                        )}
+                        {!loading && results.map(c => {
+                            const missing = getMissingFields(c);
+                            return (
+                                <button key={c.id} onClick={() => handleSelect(c)}
+                                    className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors border-b border-slate-50 last:border-0">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-800 truncate">{c.full_name}</p>
+                                            <p className="text-xs text-slate-500">{c.phone || '—'}
+                                                {c.customer_code && <span className="ml-2 text-orange-400 font-mono text-[10px]">{c.customer_code}</span>}
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                                style={{ backgroundColor: 'rgba(249,115,22,0.1)', color: '#f97316' }}>
+                                                ซ่อม {c.visit_count || 0} ครั้ง
+                                            </span>
+                                            {missing.length > 0 && (
+                                                <span className="text-[10px] text-amber-500">ขาด: {missing.join(', ')}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Selected customer badge */}
+            {selected && (() => {
+                const missing = getMissingFields(selected);
+                const isComplete = missing.length === 0;
+                return (
+                    <div className="mt-3 rounded-xl p-3 flex items-start gap-3"
+                        style={{
+                            backgroundColor: isComplete ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.1)',
+                            border: isComplete ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(245,158,11,0.4)',
+                        }}>
+                        <UserCheck size={16} className={isComplete ? 'text-green-500 flex-shrink-0 mt-0.5' : 'text-amber-500 flex-shrink-0 mt-0.5'} />
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-bold mb-0.5 ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
+                                {isComplete ? '✓ พบลูกค้าเดิม — กรอกข้อมูลล่วงหน้าแล้ว' : '⚠ พบลูกค้าแต่ข้อมูลไม่ครบ'}
+                            </p>
+                            <p className="text-xs text-slate-600">
+                                {selected.full_name} · {selected.phone} · ซ่อมมาแล้ว {selected.visit_count || 0} ครั้ง
+                            </p>
+                            {!isComplete && (
+                                <p className="text-xs text-amber-600 mt-0.5">กรุณากรอกข้อมูลที่ขาด: {missing.join(', ')}</p>
+                            )}
+                        </div>
+                        <button onClick={handleClear} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+                            <X size={14} />
+                        </button>
+                    </div>
+                );
+            })()}
+        </div>
+    );
+}
 
 const BOTTOM_NAV = [
     { label: 'หน้าหลัก', icon: Home },
@@ -104,7 +321,7 @@ export default function RepairRequest() {
     const [errors, setErrors] = useState({});
     const [photos, setPhotos] = useState([]);  // { url, name }
 
-    /* Form state */
+    const [symptomSelect, setSymptomSelect] = useState('');
     const [form, setForm] = useState({
         name: '', phone: '', lineId: '',
         deviceType: '', brand: '', model: '',
@@ -116,6 +333,21 @@ export default function RepairRequest() {
 
     const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
     const selectDevice = (k) => setForm(f => ({ ...f, deviceType: k }));
+
+    /* customer pre-fill from search */
+    const handleCustomerSelected = (cust) => {
+        if (!cust) {
+            // clear only if user explicitly cleared
+            setForm(f => ({ ...f, name: '', phone: '', lineId: '' }));
+            return;
+        }
+        setForm(f => ({
+            ...f,
+            name: cust.full_name || f.name,
+            phone: cust.phone || f.phone,
+            lineId: cust.line_id || f.lineId,
+        }));
+    };
 
     /* Photo upload */
     const handleFiles = (files) => {
@@ -233,9 +465,14 @@ export default function RepairRequest() {
                             <h2 className="text-base font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">
                                 ขั้นตอนที่ 1: ข้อมูลส่วนตัว
                             </h2>
+
+                            {/* ── Returning customer search ── */}
+                            <CustomerSearch onSelect={handleCustomerSelected} />
+
+                            {/* Name + Phone */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Name */}
-                                <div className="md:col-span-1">
+                                <div>
                                     <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
                                         ชื่อ-นามสกุล <span className="text-red-400">*</span>
                                     </label>
@@ -245,7 +482,7 @@ export default function RepairRequest() {
                                 </div>
 
                                 {/* Phone */}
-                                <div className="md:col-span-1">
+                                <div>
                                     <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
                                         เบอร์โทรศัพท์ <span className="text-red-400">*</span>
                                     </label>
@@ -340,9 +577,29 @@ export default function RepairRequest() {
                                 <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
                                     อาการเสีย <span className="text-red-400">*</span>
                                 </label>
-                                <textarea value={form.symptoms} onChange={set('symptoms')}
-                                    rows={3} placeholder="กรุณาระบุอาการเสียโดยละเอียด เช่น หน้าจอแตก, ชาร์จไม่เข้า..."
-                                    className={inputCls('symptoms') + ' resize-none'} />
+                                <select value={symptomSelect} onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSymptomSelect(val);
+                                    if (val !== 'other') {
+                                        setForm(f => ({ ...f, symptoms: val }));
+                                    } else {
+                                        setForm(f => ({ ...f, symptoms: '' }));
+                                    }
+                                }} className={inputCls('symptoms') + ' bg-white mb-2'}>
+                                    <option value="">-- เลือกอาการเสีย --</option>
+                                    {SYMPTOM_CATEGORIES.map(cat => (
+                                        <optgroup key={cat.label} label={cat.label}>
+                                            {cat.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </optgroup>
+                                    ))}
+                                    <option value="other">- อื่นๆ (ระบุเอง)</option>
+                                </select>
+                                
+                                {symptomSelect === 'other' && (
+                                    <textarea value={form.symptoms} onChange={set('symptoms')}
+                                        rows={3} placeholder="กรุณาระบุอาการเสียโดยละเอียด เช่น หน้าจอแตก, ชาร์จไม่เข้า..."
+                                        className={inputCls('symptoms') + ' resize-none'} />
+                                )}
                                 {errors.symptoms && <p className="text-xs text-red-400 mt-1">{errors.symptoms}</p>}
                             </div>
 
@@ -534,7 +791,10 @@ export default function RepairRequest() {
 
             {/* ── Footer ── */}
             <footer className="text-center py-4 border-t border-slate-100 hidden sm:block">
-                <p className="text-xs text-slate-400 tracking-wide">© 2024 SUPERART MOBILE REPAIR CENTER</p>
+                <p className="text-xs text-slate-400 tracking-wide mb-2">© 2024 SUPERART MOBILE REPAIR CENTER</p>
+                <button onClick={() => navigate('/admin')} className="text-[10px] text-slate-300 hover:text-slate-500 transition-colors">
+                    สำหรับผู้ดูแลระบบ (Admin)
+                </button>
             </footer>
 
             {/* ── Mobile bottom nav (≤ md) ── */}

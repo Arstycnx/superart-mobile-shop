@@ -30,6 +30,28 @@ const addTimeline = async (conn, repairOrderId, status, description, updatedBy =
     );
 };
 
+// ─── Helper: sync Payment and Customer Total Spent when cost changes
+const syncPaymentWithCost = async (conn, repairOrderId, customerId, newTargetCost) => {
+    const [[payment]] = await conn.query('SELECT id, status, amount, discount, total_amount FROM payments WHERE repair_order_id = ? LIMIT 1', [repairOrderId]);
+    if (payment) {
+        const oldAmount = Number(payment.amount || 0);
+        const oldTotalAmount = Number(payment.total_amount || 0);
+
+        const newAmount = newTargetCost;
+        const newTotalAmount = Math.max(0, newAmount - Number(payment.discount || 0));
+        const diffTotalAmount = newTotalAmount - oldTotalAmount;
+
+        if (newAmount === oldAmount && newTotalAmount === oldTotalAmount) return; // No change needed
+
+        await conn.query('UPDATE payments SET amount = ?, total_amount = ? WHERE id = ?', [newAmount, newTotalAmount, payment.id]);
+        
+        if (payment.status === 'paid' && diffTotalAmount !== 0) {
+            await conn.query('UPDATE customers SET total_spent = GREATEST(0, total_spent + ?) WHERE id = ?', [diffTotalAmount, customerId]);
+            await updateCustomerMembership(customerId, conn);
+        }
+    }
+};
+
 // ─── GET /api/repairs ─────────────────────────────────────
 const getAll = async (req, res) => {
     try {
@@ -374,6 +396,12 @@ const addParts = async (req, res) => {
             [totalCost, req.params.id]
         );
 
+        // Get new the updated estimated cost to sync
+        const [[updated_order]] = await conn.query('SELECT customer_id, estimated_cost FROM repair_orders WHERE id = ? LIMIT 1', [req.params.id]);
+        if (updated_order) {
+            await syncPaymentWithCost(conn, req.params.id, updated_order.customer_id, Number(updated_order.estimated_cost || 0));
+        }
+
         await conn.commit(); conn.release();
         res.json({ success: true, message: 'เพิ่มอะไหล่เรียบร้อยแล้ว', added: parts.length, totalCost });
     } catch (err) {
@@ -389,16 +417,23 @@ const createRequest = async (req, res) => {
     try {
         await conn.beginTransaction();
         const {
-            full_name, phone, line_id = null,
-            device_type = 'mobile', device_brand, device_model = '',
-            symptoms, appointment_date = null,
-            estimated_cost = 0, technician_notes = ''
+            full_name, phone, line_id,
+            device_type, device_brand, device_model,
+            symptoms, appointment_date,
+            estimated_cost, technician_notes
         } = req.body;
 
         if (!full_name || !phone || !device_brand || !symptoms) {
             await conn.rollback(); conn.release();
             return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
         }
+
+        const validAppointmentDate = appointment_date ? appointment_date : null;
+        const validEstimatedCost = estimated_cost ? Number(estimated_cost) : 0;
+        const validLineId = line_id || null;
+        const validDeviceType = device_type || 'mobile';
+        const validDeviceModel = device_model || '';
+        const validTechNotes = technician_notes || '';
 
         // Handle photos (Multer files or Base64 body fallback)
         let before_photo_path = null;
@@ -427,7 +462,7 @@ const createRequest = async (req, res) => {
             const customer_code = `CUST-${String(lastNum + 1).padStart(4, '0')}`;
             const [insertResult] = await conn.query(
                 'INSERT INTO customers (customer_code, full_name, phone, line_id) VALUES (?, ?, ?, ?)',
-                [customer_code, full_name, phone, line_id]
+                [customer_code, full_name, phone, validLineId]
             );
             [[customer]] = await conn.query('SELECT * FROM customers WHERE id = ?', [insertResult.insertId]);
         }
@@ -438,7 +473,7 @@ const createRequest = async (req, res) => {
             `INSERT INTO repair_orders
        (order_code, customer_id, device_type, device_brand, device_model, symptoms, status, received_date, before_photo, after_photo, appointment_date, estimated_cost, technician_notes)
        VALUES (?, ?, ?, ?, ?, ?, 'received', NOW(), ?, ?, ?, ?, ?)`,
-            [order_code, customer.id, device_type, device_brand, device_model, symptoms, before_photo_path, after_photo_path, appointment_date, estimated_cost, technician_notes]
+            [order_code, customer.id, validDeviceType, device_brand, validDeviceModel, symptoms, before_photo_path, after_photo_path, validAppointmentDate, validEstimatedCost, validTechNotes]
         );
 
         await addTimeline(conn, result.insertId, 'received', 'รับคำร้องออนไลน์ · ทีมงานจะติดต่อกลับภายใน 30 นาที', 'ระบบ');
@@ -464,13 +499,15 @@ const deleteRepair = async (req, res) => {
             return res.status(404).json({ success: false, message: 'ไม่พบรายการซ่อม' });
         }
         // Delete payments first (no cascade)
-        const [[pay]] = await conn.query('SELECT id, total_amount FROM payments WHERE repair_order_id = ? LIMIT 1', [req.params.id]);
+        const [[pay]] = await conn.query('SELECT id, total_amount, amount FROM payments WHERE repair_order_id = ? LIMIT 1', [req.params.id]);
         if (pay) {
             // Reverse customer total_spent if paid
-            await conn.query(
-                'UPDATE customers SET total_spent = GREATEST(0, total_spent - ?), visit_count = GREATEST(0, visit_count - 1) WHERE id = ?',
-                [Number(pay.total_amount || 0), order.customer_id]
-            );
+            if (pay.status === 'paid') {
+                await conn.query(
+                    'UPDATE customers SET total_spent = GREATEST(0, total_spent - ?), visit_count = GREATEST(0, visit_count - 1) WHERE id = ?',
+                    [Number(pay.total_amount ?? pay.amount ?? 0), order.customer_id]
+                );
+            }
             await conn.query('DELETE FROM payments WHERE repair_order_id = ?', [req.params.id]);
             await updateCustomerMembership(order.customer_id, conn);
         }
@@ -504,7 +541,7 @@ const togglePayment = async (req, res) => {
         }
 
         const [[payment]] = await pool.query(
-            'SELECT id, status, amount FROM payments WHERE repair_order_id = ? LIMIT 1',
+            'SELECT id, status, amount, total_amount FROM payments WHERE repair_order_id = ? LIMIT 1',
             [repairId]
         );
 
@@ -515,7 +552,7 @@ const togglePayment = async (req, res) => {
             if (payment) {
                 if (payment.status !== 'paid') {
                     await conn.query('UPDATE payments SET status = "paid", verified_at = NOW(), verified_by = ? WHERE id = ?', [req.user?.full_name || 'ระบบ', payment.id]);
-                    await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id = ?', [payment.amount || amount, order.customer_id]);
+                    await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id = ?', [payment.total_amount ?? payment.amount ?? amount, order.customer_id]);
                 }
             } else {
                 const receiptCode = `RCP-MAN-${Date.now()}`;
@@ -531,7 +568,7 @@ const togglePayment = async (req, res) => {
             // Mark as Unpaid (cancel payment)
             if (payment && payment.status === 'paid') {
                 await conn.query('UPDATE payments SET status = "cancelled" WHERE id = ?', [payment.id]);
-                await conn.query('UPDATE customers SET total_spent = GREATEST(0, total_spent - ?) WHERE id = ?', [payment.amount || amount, order.customer_id]);
+                await conn.query('UPDATE customers SET total_spent = GREATEST(0, total_spent - ?) WHERE id = ?', [payment.total_amount ?? payment.amount ?? amount, order.customer_id]);
                 await updateCustomerMembership(order.customer_id, conn);
             }
         }
@@ -575,7 +612,159 @@ const uploadPhoto = async (req, res) => {
 };
 
 
+// ─── PUT /api/repairs/:id/reopen (protected) ─────────────
+// Reopen / reset an existing order for a new repair job
+const reopen = async (req, res) => {
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        const {
+            symptoms, device_type, device_brand, device_model,
+            device_color, estimated_cost, urgency,
+        } = req.body;
+
+        const [[order]] = await conn.query(
+            'SELECT * FROM repair_orders WHERE id = ? LIMIT 1',
+            [req.params.id]
+        );
+        if (!order) {
+            await conn.rollback(); conn.release();
+            return res.status(404).json({ success: false, message: 'ไม่พบรายการซ่อม' });
+        }
+
+        // Build update fields (only overwrite what was provided)
+        await conn.query(
+            `UPDATE repair_orders SET
+                status           = 'received',
+                symptoms         = ?,
+                device_type      = ?,
+                device_brand     = ?,
+                device_model     = ?,
+                device_color     = ?,
+                estimated_cost   = ?,
+                urgency          = ?,
+                completed_date   = NULL,
+                delivered_date   = NULL,
+                received_date    = NOW()
+             WHERE id = ?`,
+            [
+                symptoms      !== undefined ? symptoms      : order.symptoms,
+                device_type   !== undefined ? device_type   : order.device_type,
+                device_brand  !== undefined ? device_brand  : order.device_brand,
+                device_model  !== undefined ? device_model  : order.device_model,
+                device_color  !== undefined ? device_color  : order.device_color,
+                estimated_cost !== undefined ? Number(estimated_cost) : order.estimated_cost,
+                urgency       !== undefined ? urgency       : order.urgency,
+                req.params.id,
+            ]
+        );
+
+        await addTimeline(
+            conn, req.params.id, 'received',
+            `รับเครื่องซ่อมอีกครั้ง${symptoms ? ` · ${symptoms}` : ''}`,
+            req.user?.full_name || 'ระบบ'
+        );
+
+        await conn.query(
+            'UPDATE customers SET visit_count = visit_count + 1 WHERE id = ?',
+            [order.customer_id]
+        );
+
+        await conn.commit(); conn.release();
+
+        const [rows] = await pool.query(
+            `SELECT ro.*, c.full_name AS customer_name, c.phone AS customer_phone,
+                    c.customer_code, c.telegram_chat_id
+             FROM repair_orders ro
+             LEFT JOIN customers c ON ro.customer_id = c.id
+             WHERE ro.id = ? LIMIT 1`,
+            [req.params.id]
+        );
+        res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        await conn.rollback(); conn.release();
+        console.error('[repairs.reopen]', err);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
+// ─── PUT /api/repairs/:id (protected) ─────────────
+// Update an existing order details
+const updateOrder = async (req, res) => {
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        const {
+            symptoms, device_type, device_brand, device_model,
+            device_color, estimated_cost, urgency, technician_notes
+        } = req.body;
+
+        const [[order]] = await conn.query(
+            'SELECT * FROM repair_orders WHERE id = ? LIMIT 1',
+            [req.params.id]
+        );
+        if (!order) {
+            await conn.rollback(); conn.release();
+            return res.status(404).json({ success: false, message: 'ไม่พบรายการซ่อม' });
+        }
+
+        const oldCost = Number(order.estimated_cost || 0);
+        const newCost = estimated_cost !== undefined ? Number(estimated_cost) : oldCost;
+
+        // Build update fields (only overwrite what was provided)
+        await conn.query(
+            `UPDATE repair_orders SET
+                symptoms         = ?,
+                device_type      = ?,
+                device_brand     = ?,
+                device_model     = ?,
+                device_color     = ?,
+                estimated_cost   = ?,
+                urgency          = ?,
+                technician_notes = ?
+             WHERE id = ?`,
+            [
+                symptoms      !== undefined ? symptoms      : order.symptoms,
+                device_type   !== undefined ? device_type   : order.device_type,
+                device_brand  !== undefined ? device_brand  : order.device_brand,
+                device_model  !== undefined ? device_model  : order.device_model,
+                device_color  !== undefined ? device_color  : order.device_color,
+                newCost,
+                urgency       !== undefined ? urgency       : order.urgency,
+                technician_notes !== undefined ? technician_notes : order.technician_notes,
+                req.params.id,
+            ]
+        );
+
+        if (oldCost !== newCost) {
+            await syncPaymentWithCost(conn, req.params.id, order.customer_id, newCost);
+        }
+
+        await addTimeline(
+            conn, req.params.id, order.status,
+            `แก้ไขข้อมูลการแจ้งซ่อม`,
+            req.user?.full_name || 'ระบบ'
+        );
+
+        await conn.commit(); conn.release();
+
+        const [rows] = await pool.query(
+            `SELECT ro.*, c.full_name AS customer_name, c.phone AS customer_phone,
+                    c.customer_code, c.telegram_chat_id
+             FROM repair_orders ro
+             LEFT JOIN customers c ON ro.customer_id = c.id
+             WHERE ro.id = ? LIMIT 1`,
+            [req.params.id]
+        );
+        res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        await conn.rollback(); conn.release();
+        console.error('[repairs.updateOrder]', err);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
 module.exports = {
     getAll, getById, trackRepair, create, updateStatus, addParts,
-    createRequest, notifyCustomer, deleteRepair, togglePayment, uploadPhoto
+    createRequest, notifyCustomer, deleteRepair, togglePayment, uploadPhoto, reopen, updateOrder
 };

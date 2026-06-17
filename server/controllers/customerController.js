@@ -128,14 +128,14 @@ const getPayments = async (req, res) => {
 // ─── POST /api/customers ───────────────────────────────────
 const create = async (req, res) => {
     try {
-        const { full_name, phone, email = null, line_id = null, telegram_chat_id = null } = req.body;
+        const { full_name, phone, phone2, phone3, phone4, phone5, email = null, line_id = null, telegram_chat_id = null } = req.body;
         if (!full_name || !phone) {
-            return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อและเบอร์โทร' });
+            return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อและเบอร์โทรหลัก' });
         }
         const customer_code = await generateCode();
         const [result] = await pool.query(
-            'INSERT INTO customers (customer_code, full_name, phone, email, line_id, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?)',
-            [customer_code, full_name, phone, email, line_id, telegram_chat_id]
+            'INSERT INTO customers (customer_code, full_name, phone, phone2, phone3, phone4, phone5, email, line_id, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [customer_code, full_name, phone, phone2 || null, phone3 || null, phone4 || null, phone5 || null, email, line_id, telegram_chat_id]
         );
         const [rows] = await pool.query('SELECT * FROM customers WHERE id = ?', [result.insertId]);
         res.status(201).json({ success: true, data: rows[0] });
@@ -148,15 +148,19 @@ const create = async (req, res) => {
 // ─── PUT /api/customers/:id ────────────────────────────────
 const update = async (req, res) => {
     try {
-        const { full_name, phone, email, line_id, telegram_chat_id, member_level } = req.body;
+        const { full_name, phone, phone2, phone3, phone4, phone5, email, line_id, telegram_chat_id, member_level } = req.body;
         const [existing] = await pool.query('SELECT * FROM customers WHERE id = ? LIMIT 1', [req.params.id]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบลูกค้า' });
         const cur = existing[0];
         await pool.query(
-            `UPDATE customers SET full_name=?, phone=?, email=?, line_id=?, telegram_chat_id=?, member_level=? WHERE id=?`,
+            `UPDATE customers SET full_name=?, phone=?, phone2=?, phone3=?, phone4=?, phone5=?, email=?, line_id=?, telegram_chat_id=?, member_level=? WHERE id=?`,
             [
                 full_name ?? cur.full_name,
                 phone ?? cur.phone,
+                phone2 !== undefined ? phone2 : cur.phone2,
+                phone3 !== undefined ? phone3 : cur.phone3,
+                phone4 !== undefined ? phone4 : cur.phone4,
+                phone5 !== undefined ? phone5 : cur.phone5,
                 email ?? cur.email,
                 line_id ?? cur.line_id,
                 telegram_chat_id !== undefined ? telegram_chat_id : cur.telegram_chat_id,
@@ -196,5 +200,35 @@ const remove = async (req, res) => {
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
     }
 };
+// ─── GET /api/customers/:id/history ────────────────────────
+const getHistory = async (req, res) => {
+    try {
+        const id = req.params.id;
+        
+        // Fetch repair history
+        const [repairs] = await pool.query(`
+            SELECT id, order_code as code, device_brand, device_model, symptoms, status, created_at as date, 'repair' as type
+            FROM repair_orders
+            WHERE customer_id = ?
+            ORDER BY created_at DESC
+        `, [id]);
 
-module.exports = { getAll, getById, getRepairs, getPayments, create, update, remove };
+        // Fetch claims history
+        const [claims] = await pool.query(`
+            SELECT id, claim_code as code, device_brand, device_model, claim_reason as symptoms, status, claim_date as date, 'claim' as type
+            FROM claims
+            WHERE customer_id = ?
+            ORDER BY claim_date DESC
+        `, [id]);
+
+        // Merge and sort
+        const fullHistory = [...repairs, ...claims].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        res.json({ success: true, data: fullHistory });
+    } catch (err) {
+        console.error('[customers.getHistory]', err);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
+module.exports = { getAll, getById, getRepairs, getPayments, getHistory, create, update, remove };

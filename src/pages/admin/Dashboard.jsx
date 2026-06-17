@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 
 /* ── API ── */
-const API_BASE = `${API_URL}/api/reports/stats`;
+const API_BASE = `${API_URL}/api/reports`;   // ← fixed: was /api/reports/stats (404)
 const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
 /* ── Helpers ── */
@@ -93,10 +93,13 @@ export default function Dashboard() {
                 // Chart: use monthly_revenue from the same response
                 const monthlyRev = dashJson.data.monthly_revenue || [];
                 setChartData(
-                    monthlyRev.map(r => ({
-                        day: fmtMonth(r.month),  // '2026-02' → 'ก.พ.'
-                        amount: Number(r.revenue) || 0,
-                    }))
+                    monthlyRev.map(r => {
+                        const raw = parseFloat(r.revenue);
+                        return {
+                            day: fmtMonth(r.month),  // '2026-02' → 'ก.พ.'
+                            amount: isFinite(raw) ? raw : 0,  // guard: prevent NaN reaching Recharts
+                        };
+                    })
                 );
             }
         } catch (err) {
@@ -120,7 +123,7 @@ export default function Dashboard() {
         <div className="space-y-6">
 
             {/* ── Row 1: Stat Cards ── */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                 <StatCard label="งานซ่อมทั้งหมด" value={data?.total_repairs ?? 0} sub="ทั้งหมดในระบบ" icon={Wrench} accent="blue" loading={loading} />
                 <StatCard label="รอดำเนินการ" value={data?.pending_repairs ?? 0} sub="รับ + กำลังซ่อม" icon={Clock} accent="orange" loading={loading} />
                 <StatCard label="ซ่อมเสร็จแล้ว" value={data?.completed_repairs ?? 0} sub="ซ่อม + ส่งมอบ" icon={CheckCircle} accent="green" loading={loading} />
@@ -196,17 +199,17 @@ export default function Dashboard() {
 
             {/* ── Row 3: Recent Repairs Table ── */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-4 border-b border-slate-100">
                     <h3 className="font-semibold text-slate-800 text-sm">งานซ่อมล่าสุด</h3>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
+                    <div className="flex items-center gap-2 sm:ml-auto">
+                        <div className="relative flex-1 sm:flex-none">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input type="text" placeholder="ค้นหา..." value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="pl-8 pr-4 py-1.5 text-xs border border-slate-200 rounded-lg w-44 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all bg-slate-50" />
+                                className="pl-8 pr-4 py-1.5 text-xs border border-slate-200 rounded-lg w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all bg-slate-50" />
                         </div>
                         <button onClick={() => navigate('/admin/orders')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap flex-shrink-0">
                             <Plus size={13} />เปิดงานซ่อม
                         </button>
                     </div>

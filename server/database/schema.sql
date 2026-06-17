@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS customers (
   customer_code    VARCHAR(20)  NOT NULL UNIQUE,
   full_name        VARCHAR(150) NOT NULL,
   phone            VARCHAR(20)  DEFAULT NULL,
+  phone2           VARCHAR(20)  DEFAULT NULL,
+  phone3           VARCHAR(20)  DEFAULT NULL,
+  phone4           VARCHAR(20)  DEFAULT NULL,
+  phone5           VARCHAR(20)  DEFAULT NULL,
   line_id          VARCHAR(100) DEFAULT NULL,
   telegram_chat_id VARCHAR(100) DEFAULT NULL,   -- Telegram Bot chat ID
   email            VARCHAR(255) DEFAULT NULL,

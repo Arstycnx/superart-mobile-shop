@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const {
-    getAll, getById, getRepairs, getPayments, create, update, remove,
+    getAll, getById, getRepairs, getPayments, getHistory, create, update, remove,
 } = require('../controllers/customerController');
 
 router.get('/', getAll);
 router.get('/:id', getById);
 router.get('/:id/repairs', getRepairs);
 router.get('/:id/payments', getPayments);
+router.get('/:id/history', getHistory);
 router.post('/', auth, create);
 router.put('/:id', auth, update);
 router.delete('/:id', auth, remove);

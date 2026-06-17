@@ -3,7 +3,8 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const {
-    getAll, getById, trackRepair, create, updateStatus, addParts, createRequest, notifyCustomer, deleteRepair, togglePayment, uploadPhoto
+    getAll, getById, trackRepair, create, updateStatus, addParts,
+    createRequest, notifyCustomer, deleteRepair, togglePayment, uploadPhoto, reopen, updateOrder
 } = require('../controllers/repairController');
 
 // Public routes — MUST come before /:id
@@ -17,7 +18,9 @@ router.post('/request', upload.fields([
 router.get('/', getAll);
 router.get('/:id', getById);
 router.post('/', auth, create);
+router.put('/:id', auth, updateOrder);
 router.put('/:id/status', auth, updateStatus);
+router.put('/:id/reopen', auth, reopen);
 router.put('/:id/payment', auth, togglePayment);
 router.post('/:id/notify', auth, notifyCustomer);
 router.post('/:id/parts', auth, addParts);

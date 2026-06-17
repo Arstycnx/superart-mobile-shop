@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, ChevronDown, LogOut, User } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, Menu } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const pageTitles = {
     '/admin': 'ภาพรวมระบบ',
     '/admin/inventory': 'จัดการสินค้า/อะไหล่',
     '/admin/orders': 'รายการแจ้งซ่อม',
+    '/admin/claims': 'จัดการเคลม',
     '/admin/customers': 'ข้อมูลลูกค้า',
     '/admin/payments': 'การชำระเงิน',
     '/admin/reports': 'รายงาน',
+    '/admin/settings/receipt': 'ตั้งค่าเอกสาร',
     '/admin/settings/notifications': 'ตั้งค่า',
 };
 
-export default function AdminTopbar() {
+export default function AdminTopbar({ onMenuClick }) {
     const location = useLocation();
     const navigate = useNavigate();
     const title = pageTitles[location.pathname] || 'SuperArt';
@@ -23,11 +25,10 @@ export default function AdminTopbar() {
 
     const [mockNotifications, setMockNotifications] = useState([
         { id: 1, title: 'แจ้งเตือนระบบ', msg: 'ระบบเชื่อมต่อ Telegram Bot สำเร็จพร้อมใช้งานแล้ว', time: '10 นาทีที่แล้ว', unread: true },
-        { id: 2, title: 'รายการซ่อมใหม่ SA-2026-0001', msg: 'ลูกค้าคุณ Anocha ส่งซ่อม Apple 15 Pro max สทนาอาการ: หน้าจอแตก', time: '1 ชั่วโมงที่แล้ว', unread: true },
+        { id: 2, title: 'รายการซ่อมใหม่ SA-2026-0001', msg: 'ลูกค้าคุณ Anocha ส่งซ่อม Apple 15 Pro max อาการ: หน้าจอแตก', time: '1 ชั่วโมงที่แล้ว', unread: true },
         { id: 3, title: 'เปลี่ยนสถานะสำเร็จ', msg: 'ทำการปรับสถานะใบงาน SA-2025-0099 เป็น "ซ่อมเสร็จเรียบร้อย"', time: 'เมื่อวาน 14:30 น.', unread: false },
     ]);
 
-    // Read user info from localStorage (saved at login)
     const user = (() => {
         try { return JSON.parse(localStorage.getItem('user')) || {}; }
         catch { return {}; }
@@ -36,11 +37,10 @@ export default function AdminTopbar() {
     const displayRole = user.role === 'admin' ? 'ผู้ดูแลระบบ' : user.role === 'technician' ? 'ช่างซ่อม' : 'พนักงาน';
     const avatarSeed = user.email || 'superart';
 
-    // Close dropdowns when clicking outside
     useEffect(() => {
-        const handler = (e) => { 
-            if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false); 
-            if (notiRef.current && !notiRef.current.contains(e.target)) setNotiOpen(false); 
+        const handler = (e) => {
+            if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false);
+            if (notiRef.current && !notiRef.current.contains(e.target)) setNotiOpen(false);
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
@@ -53,34 +53,45 @@ export default function AdminTopbar() {
     };
 
     return (
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 gap-4 sticky top-0 z-30">
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center px-4 gap-3 sticky top-0 z-30 min-w-0">
+            {/* Hamburger menu button - mobile only */}
+            <button
+                onClick={onMenuClick}
+                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
+                aria-label="เปิดเมนู"
+            >
+                <Menu size={20} className="text-slate-600" />
+            </button>
+
             {/* Page title */}
-            <h2 className="text-base font-bold text-slate-800 flex-1">{title}</h2>
+            <h2 className="text-base font-bold text-slate-800 flex-1 truncate">{title}</h2>
 
             {/* Right section */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
                 {/* Bell */}
                 <div className="relative" ref={notiRef}>
-                    <button 
+                    <button
                         onClick={() => setNotiOpen(v => !v)}
                         className={`relative p-2 rounded-lg transition-colors ${notiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}>
                         <Bell size={18} className="text-slate-500" />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                        {mockNotifications.some(n => n.unread) && (
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                        )}
                     </button>
                     {/* Notification Dropdown */}
                     {notiOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 overflow-hidden transform origin-top-right transition-all">
+                        <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 overflow-hidden">
                             <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
                                 <h3 className="text-sm font-bold text-slate-800">การแจ้งเตือน</h3>
                                 {mockNotifications.length > 0 && (
-                                    <button 
+                                    <button
                                         onClick={() => setMockNotifications([])}
                                         className="text-[10px] text-blue-600 font-medium hover:text-blue-700">
                                         ล้างทั้งหมด
                                     </button>
                                 )}
                             </div>
-                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                            <div className="max-h-72 overflow-y-auto">
                                 {mockNotifications.length === 0 ? (
                                     <div className="px-4 py-8 text-center bg-slate-50/30">
                                         <Bell size={24} className="mx-auto text-slate-300 mb-2" />
@@ -90,8 +101,8 @@ export default function AdminTopbar() {
                                     mockNotifications.map((noti) => (
                                         <div key={noti.id} className={`px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors group ${!noti.unread ? 'opacity-60' : ''}`}>
                                             <div className="flex justify-between items-start mb-0.5">
-                                                <p className="text-sm text-slate-800 font-bold group-hover:text-blue-600 transition-colors">{noti.title}</p>
-                                                {noti.unread && <span className="w-2 h-2 rounded-full bg-blue-500 mt-1"></span>}
+                                                <p className="text-sm text-slate-800 font-bold group-hover:text-blue-600 transition-colors pr-2">{noti.title}</p>
+                                                {noti.unread && <span className="w-2 h-2 rounded-full bg-blue-500 mt-1 flex-shrink-0" />}
                                             </div>
                                             <p className="text-xs text-slate-600 leading-snug">{noti.msg}</p>
                                             <p className="text-[10px] text-slate-400 mt-1.5 font-medium">{noti.time}</p>
@@ -110,7 +121,7 @@ export default function AdminTopbar() {
                 <div className="relative" ref={dropRef}>
                     <button
                         onClick={() => setDropOpen((v) => !v)}
-                        className="flex items-center gap-2.5 cursor-pointer group px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-2 cursor-pointer group px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                         {/* Avatar */}
                         <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden">
@@ -121,10 +132,6 @@ export default function AdminTopbar() {
                                 onError={(e) => { e.target.style.display = 'none'; }}
                             />
                         </div>
-                        <div className="hidden sm:block leading-tight text-left">
-                            <p className="text-sm font-semibold text-slate-800">{displayName}</p>
-                            <p className="text-xs text-slate-500">{displayRole}</p>
-                        </div>
                         <ChevronDown
                             size={14}
                             className={`text-slate-400 group-hover:text-slate-600 transition-transform ${dropOpen ? 'rotate-180' : ''}`}
@@ -134,6 +141,10 @@ export default function AdminTopbar() {
                     {/* Dropdown menu */}
                     {dropOpen && (
                         <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-50">
+                            <div className="px-4 py-2.5 border-b border-slate-100">
+                                <p className="text-sm font-semibold text-slate-800 truncate">{displayName}</p>
+                                <p className="text-xs text-slate-500">{displayRole}</p>
+                            </div>
                             <button
                                 onClick={() => { setDropOpen(false); }}
                                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"

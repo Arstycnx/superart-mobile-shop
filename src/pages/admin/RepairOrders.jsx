@@ -7,6 +7,7 @@ import {
     Camera, CheckCircle, Edit3, ChevronRight, RefreshCw, X,
     AlertTriangle, Trash2, Copy, Check,
 } from 'lucide-react';
+import CreatableSelect from 'react-select/creatable';
 import { toPng } from 'html-to-image';
 import ReceiptCard from '../../components/shared/ReceiptCard';
 
@@ -41,6 +42,112 @@ const URGENCY = [
     { key: 'normal', label: 'ปกติ' },
     { key: 'urgent', label: 'เร่งด่วน' },
     { key: 'express', label: 'ด่วนมาก' },
+];
+
+const BRAND_OPTIONS = [
+    { value: 'ALCATEL', label: 'ALCATEL' },
+    { value: 'ASUS', label: 'ASUS' },
+    { value: 'BENCO', label: 'BENCO' },
+    { value: 'BLACKBERRY', label: 'BLACKBERRY' },
+    { value: 'CONDOR', label: 'CONDOR' },
+    { value: 'COOLPAD', label: 'COOLPAD' },
+    { value: 'CUBOT', label: 'CUBOT' },
+    { value: 'ELEPHONE', label: 'ELEPHONE' },
+    { value: 'GIONEE', label: 'GIONEE' },
+    { value: 'GOOGLE PIXEL', label: 'GOOGLE PIXEL' },
+    { value: 'HOTWAV', label: 'HOTWAV' },
+    { value: 'HTC', label: 'HTC' },
+    { value: 'HUAWEI', label: 'HUAWEI' },
+    { value: 'INFINIX', label: 'INFINIX' },
+    { value: 'INFOCUS', label: 'INFOCUS' },
+    { value: 'IPAD', label: 'IPAD' },
+    { value: 'IPHONE', label: 'IPHONE' },
+    { value: 'ITEL', label: 'ITEL' },
+    { value: 'JIO', label: 'JIO' },
+    { value: 'LAVA', label: 'LAVA' },
+    { value: 'LENOVO', label: 'LENOVO' },
+    { value: 'LG', label: 'LG' },
+    { value: 'MAXTRON', label: 'MAXTRON' },
+    { value: 'MEIZU', label: 'MEIZU' },
+    { value: 'MICROMAX', label: 'MICROMAX' },
+    { value: 'MICROSOFT', label: 'MICROSOFT' },
+    { value: 'MOTOROLA', label: 'MOTOROLA' },
+    { value: 'NEFFOS', label: 'NEFFOS' },
+    { value: 'NOKIA', label: 'NOKIA' },
+    { value: 'NOTHING PHONE', label: 'NOTHING PHONE' },
+    { value: 'ONEPLUS', label: 'ONEPLUS' },
+    { value: 'OPPO', label: 'OPPO' },
+    { value: 'PRESTIGIO', label: 'PRESTIGIO' },
+    { value: 'RAZER', label: 'RAZER' },
+    { value: 'REALME', label: 'REALME' },
+    { value: 'SAMSUNG', label: 'SAMSUNG' },
+    { value: 'SHARP', label: 'SHARP' },
+    { value: 'SONY', label: 'SONY' },
+    { value: 'TECNO', label: 'TECNO' },
+    { value: 'TEXET', label: 'TEXET' },
+    { value: 'UMIDIGI', label: 'UMIDIGI' },
+    { value: 'VESTEL', label: 'VESTEL' },
+    { value: 'VIVO', label: 'VIVO' },
+    { value: 'XIAOMI', label: 'XIAOMI' },
+    { value: 'XOLO', label: 'XOLO' },
+    { value: 'ZTE', label: 'ZTE' },
+    { value: 'OTHERS', label: 'OTHERS' },
+];
+
+const SYMPTOM_CATEGORIES = [
+    {
+        label: '📱 หมวดหน้าจอและระบบสัมผัส (Screen & Touch)',
+        options: [
+            'หน้าจอแตก (เปลี่ยนจอชุด)',
+            'ลอกกระจกหน้าจอ (จอในยังใช้ได้)',
+            'ทัชสกรีนไม่ได้ / ทัชเพี้ยน / ทัชรวน',
+            'หน้าจอเป็นเส้น / มีจุดดำ / สีเพี้ยน',
+            'จอมืด / จอขาว / หน้าจอกะพริบ'
+        ]
+    },
+    {
+        label: '🔋 หมวดแบตเตอรี่และระบบไฟ (Battery & Power)',
+        options: [
+            'แบตเตอรี่เสื่อม / แบตหมดไว',
+            'แบตเตอรี่บวม (ดันฝาหลัง/ดันจอ)',
+            'ชาร์จไม่เข้า / ชาร์จเข้าช้าผิดปกติ',
+            'รูชาร์จหลวม / ต้องขยับสายถึงจะชาร์จเข้า',
+            'เครื่องเปิดไม่ติด / ช็อต',
+            'เครื่องดับเอง / เครื่องรีสตาร์ทวน (Bootloop)'
+        ]
+    },
+    {
+        label: '🔊 หมวดเสียงและกล้อง (Audio & Camera)',
+        options: [
+            'ลำโพงล่างไม่ดัง / เสียงแตก (ฟังเพลง/ดูคลิปไม่ได้ยิน)',
+            'ลำโพงบนไม่ดัง (แนบหูคุยโทรศัพท์ไม่ได้ยิน)',
+            'ไมค์เสีย / ปลายทางไม่ได้ยินเสียงเรา',
+            'กล้องหลังเสีย / ภาพสั่น / โฟกัสไม่ได้',
+            'กล้องหน้าเสีย / จอมืด',
+            'กระจกเลนส์กล้องแตก'
+        ]
+    },
+    {
+        label: '⚙️ หมวดฮาร์ดแวร์และตัวเครื่อง (Hardware & Body)',
+        options: [
+            'ตกน้ำ / โดนความชื้น / น้ำเข้าเครื่อง',
+            'ฝาหลังแตก / เปลี่ยนบอดี้ใหม่',
+            'ปุ่ม Power (เปิด-ปิด) กดไม่ได้ / กดยาก',
+            'ปุ่มเพิ่ม-ลดเสียง (Volume) กดไม่ได้',
+            'เครื่องร้อนจัดผิดปกติ',
+            'ถาดซิมหัก / ติดคาเครื่อง'
+        ]
+    },
+    {
+        label: '🌐 หมวดซอฟต์แวร์และเครือข่าย (Software & Network)',
+        options: [
+            'ลืมรหัสผ่านหน้าจอ / ปลดล็อคหน้าจอ',
+            'ติดล็อคบัญชี (ติด iCloud / Gmail / Google Account)',
+            'เครื่องค้าง / เครื่องรวน / ซอฟต์แวร์มีปัญหา',
+            'ไม่อ่านซิม / ไม่มีสัญญาณโทรศัพท์',
+            'เชื่อมต่อ Wi-Fi หรือ Bluetooth ไม่ได้'
+        ]
+    }
 ];
 
 const thb = (n) => Number(n || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0 });
@@ -97,19 +204,23 @@ const emptyForm = {
     estimated_cost: '', service_cost: '',
 };
 
-function CreateRepairModal({ onClose, onCreated }) {
-    const [form, setForm] = useState(emptyForm);
+function CreateRepairModal({ onClose, onCreated, prefilledCustomer = null }) {
+    const [symptomSelect, setSymptomSelect] = useState('');
+    const [form, setForm] = useState(prefilledCustomer
+        ? { ...emptyForm, customer_id: prefilledCustomer.id }
+        : emptyForm
+    );
     // 'new' = fill in new customer info, 'search' = pick existing
-    const [custMode, setCustMode] = useState('new');
+    const [custMode, setCustMode] = useState(prefilledCustomer ? 'search' : 'new');
     // new customer fields
     const [newName, setNewName] = useState('');
     const [newPhone, setNewPhone] = useState('');
     const [newLine, setNewLine] = useState('');
     // search existing
-    const [customerSearch, setCustSearch] = useState('');
+    const [customerSearch, setCustSearch] = useState(prefilledCustomer ? prefilledCustomer.full_name : '');
     const [customers, setCustomers] = useState([]);
     const [custLoading, setCustLoading] = useState(false);
-    const [selectedCust, setSelectedCust] = useState(null);
+    const [selectedCust, setSelectedCust] = useState(prefilledCustomer || null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -195,6 +306,17 @@ function CreateRepairModal({ onClose, onCreated }) {
 
     const inputCls = 'w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500/40 transition-all';
     const inputStyle = { backgroundColor: '#0f172a', border: '1px solid #334155' };
+
+    const selectStyles = {
+        control: (base, state) => ({ ...base, backgroundColor: '#0f172a', borderColor: state.isFocused ? '#3b82f6' : '#334155', borderRadius: '0.75rem', padding: '2px', boxShadow: state.isFocused ? '0 0 0 2px rgba(59,130,246,0.4)' : 'none', '&:hover': { borderColor: '#475569' } }),
+        menu: (base) => ({ ...base, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', zIndex: 50 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? 'rgba(59,130,246,0.2)' : 'transparent', color: '#f1f5f9', cursor: 'pointer', '&:hover': { backgroundColor: 'rgba(59,130,246,0.2)' } }),
+        singleValue: (base) => ({ ...base, color: '#f1f5f9' }),
+        multiValue: (base) => ({ ...base, backgroundColor: 'rgba(59,130,246,0.2)', borderRadius: '4px' }),
+        multiValueLabel: (base) => ({ ...base, color: '#93c5fd' }),
+        multiValueRemove: (base) => ({ ...base, color: '#93c5fd', ':hover': { backgroundColor: 'rgba(239,68,68,0.2)', color: '#f87171' } }),
+        input: (base) => ({ ...base, color: '#f1f5f9' })
+    };
 
     return (
         <>
@@ -303,10 +425,16 @@ function CreateRepairModal({ onClose, onCreated }) {
                                     {DEVICE_TYPES.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
                                 </select>
                             </div>
-                            <div>
+                            <div className="col-span-2">
                                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ยี่ห้อ *</label>
-                                <input type="text" value={form.device_brand} onChange={setField('device_brand')}
-                                    placeholder="Apple, Samsung..." className={inputCls} style={inputStyle} />
+                                <CreatableSelect
+                                    isClearable
+                                    options={BRAND_OPTIONS}
+                                    styles={selectStyles}
+                                    placeholder="เลือกหรือพิมพ์ยี่ห้อ..."
+                                    value={form.device_brand ? { value: form.device_brand, label: form.device_brand } : null}
+                                    onChange={(sel) => setForm(f => ({ ...f, device_brand: sel ? sel.value : '' }))}
+                                />
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">รุ่น</label>
@@ -322,11 +450,30 @@ function CreateRepairModal({ onClose, onCreated }) {
                                 <input type="text" value={form.device_color} onChange={setField('device_color')}
                                     placeholder="Black, Gold..." className={inputCls} style={inputStyle} />
                             </div>
-                            <div className="col-span-2">
-                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">อาการเสีย *</label>
-                                <textarea value={form.symptoms} onChange={setField('symptoms')}
-                                    rows={2} placeholder="หน้าจอแตก, ชาร์จไม่เข้า, แบตเตอรี่เสื่อม..."
-                                    className={inputCls + ' resize-none'} style={inputStyle} />
+                            <div className="col-span-2 flex flex-col gap-2">
+                                <label className="text-xs font-semibold text-slate-400 mb-0 block uppercase tracking-wider">อาการเสีย *</label>
+                                <select value={symptomSelect} onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSymptomSelect(val);
+                                    if (val !== 'other') {
+                                        setForm(f => ({ ...f, symptoms: val }));
+                                    } else {
+                                        setForm(f => ({ ...f, symptoms: '' }));
+                                    }
+                                }} className={inputCls + ' bg-[#0f172a]'} style={inputStyle}>
+                                    <option value="">-- เลือกอาการเสีย --</option>
+                                    {SYMPTOM_CATEGORIES.map(cat => (
+                                        <optgroup key={cat.label} label={cat.label}>
+                                            {cat.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </optgroup>
+                                    ))}
+                                    <option value="other">- อื่นๆ (ระบุเอง)</option>
+                                </select>
+                                
+                                {symptomSelect === 'other' && (
+                                    <input type="text" value={form.symptoms} onChange={setField('symptoms')}
+                                        placeholder="ระบุอาการเสียเอง..." className={inputCls} style={inputStyle} />
+                                )}
                             </div>
                         </div>
 
@@ -396,7 +543,370 @@ function CreateRepairModal({ onClose, onCreated }) {
 }
 
 
+/* ─── Reopen Repair Modal ────────────────────────────────── */
+/* Opens on "ซ่อมใหม่" button — resets the SAME record,      */
+/* no new order code is generated.                            */
+function ReopenRepairModal({ order, onClose, onReopened, onShowToast }) {
+    const [symptomSelect, setSymptomSelect] = useState('');
+    const [symptoms, setSymptoms] = useState(order.symptoms || '');
+    const [deviceBrand, setDeviceBrand] = useState(order.device_brand || '');
+    const [deviceModel, setDeviceModel] = useState(order.device_model || '');
+    const [deviceType, setDeviceType] = useState(order.device_type || 'mobile');
+    const [deviceColor, setDeviceColor] = useState(order.device_color || '');
+    const [estimatedCost, setEstimatedCost] = useState(order.estimated_cost || '');
+    const [urgency, setUrgency] = useState(order.urgency || 'normal');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const inputCls = 'w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500/40 transition-all';
+    const inputStyle = { backgroundColor: '#0f172a', border: '1px solid #334155' };
+
+    const selectStyles = {
+        control: (base, state) => ({ ...base, backgroundColor: '#0f172a', borderColor: state.isFocused ? '#3b82f6' : '#334155', borderRadius: '0.75rem', padding: '2px', boxShadow: state.isFocused ? '0 0 0 2px rgba(59,130,246,0.4)' : 'none', '&:hover': { borderColor: '#475569' } }),
+        menu: (base) => ({ ...base, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', zIndex: 50 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? 'rgba(59,130,246,0.2)' : 'transparent', color: '#f1f5f9', cursor: 'pointer' }),
+        singleValue: (base) => ({ ...base, color: '#f1f5f9' }),
+        input: (base) => ({ ...base, color: '#f1f5f9' }),
+    };
+
+    const handleSave = async () => {
+        if (!symptoms.trim()) { setError('กรุณาระบุอาการเสีย'); return; }
+        setSaving(true); setError('');
+        try {
+            const res = await fetch(`${API}/${order.id}/reopen`, {
+                method: 'PUT',
+                headers: getAuthHeader(),
+                body: JSON.stringify({
+                    symptoms, device_type: deviceType, device_brand: deviceBrand,
+                    device_model: deviceModel, device_color: deviceColor,
+                    estimated_cost: Number(estimatedCost || 0), urgency,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setError(data.message || 'เกิดข้อผิดพลาด'); return;
+            }
+            onReopened();
+            onClose();
+        } catch (err) { setError(`เกิดข้อผิดพลาด: ${err.message}`); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <>
+            <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                <div className="w-full max-w-lg rounded-2xl shadow-2xl my-4"
+                    style={{ backgroundColor: '#111827', border: '1px solid #1e293b' }}>
+
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+                        <div>
+                            <h2 className="text-base font-bold text-white flex items-center gap-2">
+                                <RefreshCw size={15} className="text-blue-400" />
+                                รับซ่อมอีกครั้ง
+                            </h2>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Order เดิม: <span className="text-blue-400 font-mono">{order.order_code}</span>
+                                {' · '}{order.customer_name}
+                            </p>
+                        </div>
+                        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                            <X size={18} className="text-slate-400" />
+                        </button>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                        {error && (
+                            <div className="flex items-center gap-2 p-3 rounded-xl text-sm text-red-300"
+                                style={{ backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                                <AlertTriangle size={15} className="flex-shrink-0" />{error}
+                            </div>
+                        )}
+
+                        {/* Info banner */}
+                        <div className="flex items-start gap-3 p-3 rounded-xl"
+                            style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                            <RefreshCw size={14} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-blue-300 leading-relaxed">
+                                สถานะจะถูกรีเซ็ตเป็น <strong>รับเครื่อง</strong> และเพิ่มประวัติการซ่อมใน Timeline เดิม
+                                โดยไม่สร้าง Order Code ใหม่
+                            </p>
+                        </div>
+
+                        {/* Device fields */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div>
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ประเภท</label>
+                                <select value={deviceType} onChange={e => setDeviceType(e.target.value)}
+                                    className={inputCls + ' bg-[#0f172a]'} style={inputStyle}>
+                                    {DEVICE_TYPES.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ยี่ห้อ</label>
+                                <CreatableSelect
+                                    isClearable
+                                    options={BRAND_OPTIONS}
+                                    styles={selectStyles}
+                                    placeholder="เลือกหรือพิมพ์ยี่ห้อ..."
+                                    value={deviceBrand ? { value: deviceBrand, label: deviceBrand } : null}
+                                    onChange={sel => setDeviceBrand(sel ? sel.value : '')}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">รุ่น</label>
+                                <input type="text" value={deviceModel} onChange={e => setDeviceModel(e.target.value)}
+                                    placeholder="รุ่นอุปกรณ์..." className={inputCls} style={inputStyle} />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">สี (ไม่บังคับ)</label>
+                                <input type="text" value={deviceColor} onChange={e => setDeviceColor(e.target.value)}
+                                    placeholder="Black, Gold..." className={inputCls} style={inputStyle} />
+                            </div>
+                        </div>
+
+                        {/* Symptoms */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">อาการเสีย (ครั้งใหม่) *</label>
+                            <select value={symptomSelect} onChange={e => {
+                                const val = e.target.value;
+                                setSymptomSelect(val);
+                                if (val && val !== 'other') setSymptoms(val);
+                                else if (val === 'other') setSymptoms('');
+                            }} className={inputCls + ' bg-[#0f172a]'} style={inputStyle}>
+                                <option value="">-- เลือกอาการเสีย --</option>
+                                {SYMPTOM_CATEGORIES.map(cat => (
+                                    <optgroup key={cat.label} label={cat.label}>
+                                        {cat.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </optgroup>
+                                ))}
+                                <option value="other">- อื่นๆ (ระบุเอง)</option>
+                            </select>
+                            {(symptomSelect === 'other' || !symptomSelect) && (
+                                <input type="text" value={symptoms}
+                                    onChange={e => setSymptoms(e.target.value)}
+                                    placeholder={symptomSelect === 'other' ? 'ระบุอาการเสียเอง...' : 'หรือพิมพ์อาการเสียโดยตรง...'}
+                                    className={inputCls} style={inputStyle} />
+                            )}
+                        </div>
+
+                        {/* Urgency */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 mb-2 block uppercase tracking-wider">ระดับความเร่งด่วน</label>
+                            <div className="flex gap-2">
+                                {URGENCY.map(u => (
+                                    <button key={u.key} type="button" onClick={() => setUrgency(u.key)}
+                                        className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${urgency === u.key
+                                            ? u.key === 'express'
+                                                ? 'bg-red-500/20 border-red-500/50 text-red-400'
+                                                : u.key === 'urgent'
+                                                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                                                    : 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                                            : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                                            }`}>
+                                        {u.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Cost */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ประเมินราคา (฿)</label>
+                            <input type="number" min="0" value={estimatedCost}
+                                onChange={e => setEstimatedCost(e.target.value)}
+                                placeholder="0" className={inputCls} style={inputStyle} />
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={onClose}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-600 hover:bg-slate-700 transition-colors">
+                                ยกเลิก
+                            </button>
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60"
+                                style={{ backgroundColor: '#3b82f6' }}>
+                                <RefreshCw size={14} className={saving ? 'animate-spin' : ''} />
+                                {saving ? 'กำลังบันทึก...' : 'รับซ่อมอีกครั้ง'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
+/* ─── Edit Repair Modal ──────────────────────────────────── */
+/* Opens on "แก้ไข" button — updates the CURRENT order.       */
+function EditRepairModal({ order, onClose, onUpdated, onShowToast }) {
+    const [symptomSelect, setSymptomSelect] = useState('');
+    const [symptoms, setSymptoms] = useState(order.symptoms || '');
+    const [deviceBrand, setDeviceBrand] = useState(order.device_brand || '');
+    const [deviceModel, setDeviceModel] = useState(order.device_model || '');
+    const [deviceType, setDeviceType] = useState(order.device_type || 'mobile');
+    const [deviceColor, setDeviceColor] = useState(order.device_color || '');
+    const [estimatedCost, setEstimatedCost] = useState(order.estimated_cost || '');
+    const [urgency, setUrgency] = useState(order.urgency || 'normal');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const inputCls = 'w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500/40 transition-all';
+    const inputStyle = { backgroundColor: '#0f172a', border: '1px solid #334155' };
+
+    const selectStyles = {
+        control: (base, state) => ({ ...base, backgroundColor: '#0f172a', borderColor: state.isFocused ? '#3b82f6' : '#334155', borderRadius: '0.75rem', padding: '2px', boxShadow: state.isFocused ? '0 0 0 2px rgba(59,130,246,0.4)' : 'none', '&:hover': { borderColor: '#475569' } }),
+        menu: (base) => ({ ...base, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', zIndex: 50 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? 'rgba(59,130,246,0.2)' : 'transparent', color: '#f1f5f9', cursor: 'pointer' }),
+        singleValue: (base) => ({ ...base, color: '#f1f5f9' }),
+        input: (base) => ({ ...base, color: '#f1f5f9' }),
+    };
+
+    const handleSave = async () => {
+        if (!symptoms.trim()) { setError('กรุณาระบุอาการเสีย'); return; }
+        setSaving(true); setError('');
+        try {
+            const res = await fetch(`${API}/${order.id}`, {
+                method: 'PUT',
+                headers: getAuthHeader(),
+                body: JSON.stringify({
+                    symptoms, device_type: deviceType, device_brand: deviceBrand,
+                    device_model: deviceModel, device_color: deviceColor,
+                    estimated_cost: Number(estimatedCost || 0), urgency,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setError(data.message || 'เกิดข้อผิดพลาด'); return;
+            }
+            onUpdated();
+            onClose();
+        } catch (err) { setError(`เกิดข้อผิดพลาด: ${err.message}`); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <>
+            <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                <div className="w-full max-w-lg rounded-2xl shadow-2xl my-4"
+                    style={{ backgroundColor: '#111827', border: '1px solid #1e293b' }}>
+
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+                        <div>
+                            <h2 className="text-base font-bold text-white flex items-center gap-2">
+                                <Edit3 size={15} className="text-amber-400" />
+                                แก้ไขข้อมูลรายการซ่อม
+                            </h2>
+                        </div>
+                        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                            <X size={18} className="text-slate-400" />
+                        </button>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                        {error && (
+                            <div className="flex items-center gap-2 p-3 rounded-xl text-sm text-red-300"
+                                style={{ backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                                <AlertTriangle size={15} className="flex-shrink-0" />{error}
+                            </div>
+                        )}
+
+                        {/* Device fields */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div>
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ประเภท</label>
+                                <select value={deviceType} onChange={e => setDeviceType(e.target.value)}
+                                    className={inputCls + ' bg-[#0f172a]'} style={inputStyle}>
+                                    {DEVICE_TYPES.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ยี่ห้อ</label>
+                                <CreatableSelect
+                                    isClearable
+                                    options={BRAND_OPTIONS}
+                                    styles={selectStyles}
+                                    placeholder="เลือกหรือพิมพ์ยี่ห้อ..."
+                                    value={deviceBrand ? { value: deviceBrand, label: deviceBrand } : null}
+                                    onChange={sel => setDeviceBrand(sel ? sel.value : '')}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">รุ่น</label>
+                                <input type="text" value={deviceModel} onChange={e => setDeviceModel(e.target.value)}
+                                    placeholder="รุ่นอุปกรณ์..." className={inputCls} style={inputStyle} />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">สี (ไม่บังคับ)</label>
+                                <input type="text" value={deviceColor} onChange={e => setDeviceColor(e.target.value)}
+                                    placeholder="Black, Gold..." className={inputCls} style={inputStyle} />
+                            </div>
+                        </div>
+
+                        {/* Symptoms */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">อาการเสีย *</label>
+                            <input type="text" value={symptoms}
+                                onChange={e => setSymptoms(e.target.value)}
+                                placeholder="อาการเสีย..."
+                                className={inputCls} style={inputStyle} />
+                        </div>
+
+                        {/* Urgency */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 mb-2 block uppercase tracking-wider">ระดับความเร่งด่วน</label>
+                            <div className="flex gap-2">
+                                {URGENCY.map(u => (
+                                    <button key={u.key} type="button" onClick={() => setUrgency(u.key)}
+                                        className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${urgency === u.key
+                                            ? u.key === 'express'
+                                                ? 'bg-red-500/20 border-red-500/50 text-red-400'
+                                                : u.key === 'urgent'
+                                                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                                                    : 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                                            : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                                            }`}>
+                                        {u.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Cost */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 mb-1.5 block uppercase tracking-wider">ประเมินราคา (฿)</label>
+                            <input type="number" min="0" value={estimatedCost}
+                                onChange={e => setEstimatedCost(e.target.value)}
+                                placeholder="0" className={inputCls} style={inputStyle} />
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={onClose}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-600 hover:bg-slate-700 transition-colors">
+                                ยกเลิก
+                            </button>
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60"
+                                style={{ backgroundColor: '#f59e0b' }}>
+                                <Edit3 size={14} className={saving ? 'animate-spin' : ''} />
+                                {saving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
+
 /* ─── Status Selector ──────────────────────────────────── */
+
 const ALL_STATUSES = [
     { key: 'received', label: 'รับเครื่อง', color: '#60a5fa' },
     { key: 'repairing', label: 'กำลังซ่อม', color: '#fb923c' },
@@ -508,7 +1018,7 @@ function CopyButton({ text, className = "" }) {
 }
 
 /* ─── Expanded Card ────────────────────────────────────── */
-function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotify }) {
+function ExpandedCard({ order, settings, onCollapse, onStatusUpdated, onShowToast, onNotify, onAddRepair, onEditOrder }) {
     const fileRefBefore = useRef();
     const fileRefAfter = useRef();
     const receiptRef = useRef(null);
@@ -714,9 +1224,27 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
 
                     {/* Col 3 — Actions */}
                     <div className="pt-4 lg:pt-0 lg:pl-6 flex flex-col items-start justify-between">
-                        <button onClick={onCollapse} className="self-end p-1.5 rounded-lg hover:bg-white/5 transition-colors">
-                            <ChevronUp size={18} className="text-slate-400" />
-                        </button>
+                        <div className="self-end flex items-center gap-2">
+                            <button
+                                onClick={() => onEditOrder && onEditOrder(order)}
+                                title="แก้ไขข้อมูลการซ่อม"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-slate-800"
+                                style={{ border: '1px solid #475569', color: '#cbd5e1' }}
+                            >
+                                <Edit3 size={13} />แก้ไข
+                            </button>
+                            <button
+                                onClick={() => onAddRepair && onAddRepair(order)}
+                                title="รับซ่อมอีกครั้งใน Order เดิม"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-110"
+                                style={{ backgroundColor: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa' }}
+                            >
+                                <RefreshCw size={13} />ซ่อมอีกครั้ง
+                            </button>
+                            <button onClick={onCollapse} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                                <ChevronUp size={18} className="text-slate-400" />
+                            </button>
+                        </div>
 
                         <div className="flex flex-col gap-2 w-full mt-4 lg:mt-0">
                             {/* Free-pick status selector */}
@@ -892,9 +1420,9 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                 </div>
             </div>
 
-            {/* Hidden Receipt for Capture */}
-            <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -1000, pointerEvents: 'none', opacity: 0 }}>
-                <ReceiptCard ref={receiptRef} order={order} />
+            {/* Hidden Receipt formatting for export */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <ReceiptCard ref={receiptRef} order={order} settings={settings} />
             </div>
         </>
     );
@@ -984,7 +1512,7 @@ function CollapsedCard({ order, onExpand, onNotify, onDelete }) {
 }
 
 /* ─── Expanded Card Wrapper (fetches full detail) ────────── */
-function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatusUpdated, onShowToast, onNotify }) {
+function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatusUpdated, onShowToast, onNotify, onAddRepair, onEditOrder, settings }) {
     const [order, setOrder] = useState(initialOrder);
 
     const loadDetail = useCallback(() => {
@@ -999,9 +1527,12 @@ function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatu
     return (
         <ExpandedCard
             order={order}
+            settings={settings}
             onCollapse={onCollapse}
             onShowToast={onShowToast}
             onNotify={onNotify}
+            onAddRepair={onAddRepair}
+            onEditOrder={onEditOrder}
             onStatusUpdated={() => { onStatusUpdated(); loadDetail(); }}
         />
     );
@@ -1013,17 +1544,20 @@ function ExpandedCardWrapper({ orderId, order: initialOrder, onCollapse, onStatu
 export default function RepairOrders() {
     const [orders, setOrders] = useState([]);
     const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('all');
+    const [totalPages, setTotalPages] = useState(1);
+    const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
-    const [statusCounts, setStatusCounts] = useState({});
+    const [toast, setToast] = useState(null);
+    const [receiptSettings, setReceiptSettings] = useState(null);
     const [createOpen, setCreateOpen] = useState(false);
-    const [toast, setToast] = useState(null); // { message, type }
+    const [reopenOrder, setReopenOrder] = useState(null);
+    const [editOrderObj, setEditOrderObj] = useState(null);
     const [notiOpen, setNotiOpen] = useState(false);
     const notiRef = useRef(null);
 
-    // Close notifications dropdown when clicking outside
     useEffect(() => {
         const handler = (e) => {
             if (notiRef.current && !notiRef.current.contains(e.target)) {
@@ -1037,7 +1571,6 @@ export default function RepairOrders() {
     const showToast = useCallback((message, type = 'success') => {
         setToast({ message, type });
     }, []);
-
 
     const notifyOrder = useCallback(async (orderId, silent = false) => {
         try {
@@ -1058,17 +1591,26 @@ export default function RepairOrders() {
     const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({ page: 1, limit: 50 });
-            if (activeTab !== 'all') params.set('status', activeTab);
-            if (search) params.set('search', search);
-            const res = await fetch(`${API}?${params}`);
+            const params = new URLSearchParams({ page, limit: 12 });
+            if (search) params.append('search', search);
+            if (statusFilter !== 'all') params.append('status', statusFilter);
+
+            const [res, settingsRes] = await Promise.all([
+                fetch(`${API}?${params}`, { headers: getAuthHeader() }),
+                fetch(`${API_URL}/api/settings/receipt`, { headers: getAuthHeader() }),
+            ]);
+
             const data = await res.json();
             setOrders(data.data || []);
             setTotal(data.total || 0);
-            setStatusCounts(data.statusCounts || {});
+            setTotalPages(data.totalPages || 1);
+
+            const sData = await settingsRes.json();
+            if (sData.success) setReceiptSettings(sData.data);
         } catch { /* noop */ }
-        setLoading(false);
-    }, [activeTab, search]);
+        finally { setLoading(false); }
+    }, [page, search, statusFilter]);
+
 
     // ── Delete Repair Order ──────────────────────────────────
     const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, order_code }
@@ -1099,11 +1641,11 @@ export default function RepairOrders() {
 
     const TABS = [
         { key: 'all', label: 'ทั้งหมด', count: total },
-        { key: 'received', label: 'รับเครื่อง', count: statusCounts.received || 0 },
-        { key: 'repairing', label: 'กำลังซ่อม', count: statusCounts.repairing || 0 },
-        { key: 'completed', label: 'ซ่อมเสร็จ', count: statusCounts.completed || 0 },
-        { key: 'delivered', label: 'ส่งมอบแล้ว', count: statusCounts.delivered || 0 },
-        { key: 'cancelled', label: 'ยกเลิก', count: statusCounts.cancelled || 0 },
+        { key: 'received', label: 'รับเครื่อง', count: 0 },
+        { key: 'repairing', label: 'กำลังซ่อม', count: 0 },
+        { key: 'completed', label: 'ซ่อมเสร็จ', count: 0 },
+        { key: 'delivered', label: 'ส่งมอบแล้ว', count: 0 },
+        { key: 'cancelled', label: 'ยกเลิก', count: 0 },
     ];
 
     return (
@@ -1124,7 +1666,7 @@ export default function RepairOrders() {
             )}
 
             {/* Top bar */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-2">
+            <div className="flex items-center justify-between px-4 sm:px-6 pt-5 pb-2">
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                         <span className="text-white font-bold text-xs">SA</span>
@@ -1182,39 +1724,39 @@ export default function RepairOrders() {
                 </div>
             </div>
 
-            <div className="px-6 pb-6 pt-2">
+            <div className="px-4 sm:px-6 pb-6 pt-2">
                 {/* Header */}
-                <div className="flex items-start justify-between mb-5">
-                    <div>
-                        <h1 className="text-3xl font-bold text-white mb-1">รายการแจ้งซ่อม</h1>
-                        <p className="text-slate-400 text-sm">จัดการและติดตามสถานะการซ่อมทั้งหมด ({total} รายการ)</p>
+                <div className="flex items-start justify-between mb-5 gap-3">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-3xl font-bold text-white mb-1">รายการแจ้งซ่อม</h1>
+                        <p className="text-slate-400 text-xs sm:text-sm">จัดการและติดตามสถานะการซ่อมทั้งหมด ({total} รายการ)</p>
                     </div>
                     <button
                         onClick={() => setCreateOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-900/30 hover:brightness-110 transition-all"
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-lg shadow-blue-900/30 hover:brightness-110 transition-all flex-shrink-0"
                         style={{ backgroundColor: '#3b82f6' }}>
-                        <Plus size={16} />สร้างรายการซ่อม
+                        <Plus size={15} /><span className="hidden sm:inline">สร้างรายการซ่อม</span><span className="sm:hidden">เพิ่ม</span>
                     </button>
                 </div>
 
                 {/* Tabs + Search */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
-                    <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex flex-col gap-3 mb-5">
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1">
                         {TABS.map(tab => (
-                            <button key={tab.key} onClick={() => { setActiveTab(tab.key); setExpandedId(null); }}
-                                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key
+                            <button key={tab.key} onClick={() => { setStatusFilter(tab.key); setExpandedId(null); }}
+                                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${statusFilter === tab.key
                                     ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.35)]'
                                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                                     }`}>
                                 {tab.label}
                                 {tab.count > 0 && (
-                                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-blue-500/80' : 'bg-slate-700 text-slate-500'
+                                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === tab.key ? 'bg-blue-500/80' : 'bg-slate-700 text-slate-500'
                                         }`}>{tab.count}</span>
                                 )}
                             </button>
                         ))}
                     </div>
-                    <div className="relative sm:ml-auto sm:w-64">
+                    <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                         <input type="text" placeholder="ค้นหา Order ID, ลูกค้า..." value={search}
                             onChange={e => setSearch(e.target.value)}
@@ -1236,6 +1778,8 @@ export default function RepairOrders() {
                                 onStatusUpdated={fetchOrders}
                                 onShowToast={showToast}
                                 onNotify={notifyOrder}
+                                onAddRepair={(order) => setReopenOrder(order)}
+                                onEditOrder={(order) => setEditOrderObj(order)}
                             />
                             : <CollapsedCard key={order.id} order={order} onExpand={() => setExpandedId(order.id)} onNotify={notifyOrder} onDelete={(o) => setDeleteConfirm({ id: o.id, order_code: o.order_code })} />
                     ))}
@@ -1245,14 +1789,31 @@ export default function RepairOrders() {
                 </div>
             </div>
 
-            {/* Create Modal */}
+            {/* Create Modal — for brand-new orders */}
             {createOpen && (
                 <CreateRepairModal
                     onClose={() => setCreateOpen(false)}
-                    onCreated={() => {
-                        fetchOrders();
-                        showToast('สร้างรายการซ่อมสำเร็จ');
-                    }}
+                    onCreated={() => { fetchOrders(); showToast('สร้างรายการซ่อมสำเร็จ'); }}
+                />
+            )}
+
+            {/* Reopen Modal — resets SAME record, no new order code */}
+            {reopenOrder && (
+                <ReopenRepairModal
+                    order={reopenOrder}
+                    onClose={() => setReopenOrder(null)}
+                    onShowToast={showToast}
+                    onReopened={() => { fetchOrders(); showToast('รับซ่อมอีกครั้งเรียบร้อย — ใช้ Order เดิม'); }}
+                />
+            )}
+
+            {/* Edit Repair Modal */}
+            {editOrderObj && (
+                <EditRepairModal
+                    order={editOrderObj}
+                    onClose={() => setEditOrderObj(null)}
+                    onShowToast={showToast}
+                    onUpdated={() => { fetchOrders(); showToast('บันทึกการแก้ไขเรียบร้อยแล้ว'); }}
                 />
             )}
         </div>

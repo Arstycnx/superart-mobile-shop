@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import API_URL from '../../api/config';
 import { Outlet, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import AdminTopbar from './AdminTopbar';
 
 export default function AdminLayout() {
     const navigate = useNavigate();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -14,8 +15,7 @@ export default function AdminLayout() {
             navigate('/', { replace: true });
             return;
         }
-        // Verify token with backend
-        fetch(`${API_URL}/api/auth/profile`, {
+        fetch(`${API_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then((res) => {
@@ -27,16 +27,15 @@ export default function AdminLayout() {
             })
             .catch(() => {
                 // Server unreachable — still allow access if token exists locally
-                // (graceful degradation)
             });
     }, [navigate]);
 
     return (
-        <div className="flex min-h-screen bg-bg-light">
-            <AdminSidebar />
+        <div className="flex min-h-screen bg-bg-light overflow-hidden">
+            <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className="flex-1 flex flex-col min-w-0">
-                <AdminTopbar />
-                <main className="flex-1 p-6 animate-fadeIn">
+                <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+                <main className="flex-1 p-4 sm:p-6 animate-fadeIn overflow-x-hidden">
                     <Outlet />
                 </main>
             </div>

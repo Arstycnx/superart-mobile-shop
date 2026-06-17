@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as XLSX from 'xlsx';
 
 /* ─── API ──────────────────────────────── */
 const API_BASE = `${API_URL}/api/reports`;
@@ -39,8 +40,8 @@ const fmtMonth = (raw) => {
 };
 
 /* ─── Period map ────────────────────────── */
-const PERIOD_MAP = { 'วันนี้': 'today', 'สัปดาห์นี้': 'week', 'เดือนนี้': 'month', 'ปีนี้': 'year' };
-const DATE_TABS = ['วันนี้', 'สัปดาห์นี้', 'เดือนนี้', 'ปีนี้'];
+const PERIOD_MAP = { 'วันนี้': 'today', 'สัปดาห์นี้': 'week', 'เดือนนี้': 'month', 'ไตรมาสนี้': 'quarter', 'ปีนี้': 'year' };
+const DATE_TABS = ['วันนี้', 'สัปดาห์นี้', 'เดือนนี้', 'ไตรมาสนี้', 'ปีนี้'];
 const PIE_COLORS = ['#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b', '#f87171', '#94a3b8'];
 
 /* ─── Skeleton ──────────────────────────── */
@@ -210,36 +211,154 @@ export default function Reports() {
         }
     };
 
+    const handleExportExcel = async () => {
+        try {
+            const wb = XLSX.utils.book_new();
+            const today = new Date().toLocaleDateString('th-TH').replace(/\//g, '-');
+
+            /* ── helper: add styled header row + data rows ──────────────── */
+            const makeSheet = (headers, rows) => {
+                const aoa = [headers, ...rows];
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+                // Auto-width: measure each column
+                const colWidths = headers.map((h, ci) => {
+                    const maxLen = Math.max(
+                        String(h).length,
+                        ...rows.map(r => String(r[ci] ?? '').length)
+                    );
+                    return { wch: Math.min(maxLen + 4, 40) };
+                });
+                ws['!cols'] = colWidths;
+                return ws;
+            };
+
+            /* ── Sheet 1: สรุปภาพรวม (1 header row + 1 data row) ────── */
+            const s1Headers = [
+                'ช่วงเวลา', 'รายรับรวม (฿)', 'ค่าใช้จ่ายรวม (฿)', 'กำไรสุทธิ (฿)',
+                'ประมาณภาษี (฿)', 'อัตราภาษี', 'งานซ่อม (รายการ)',
+            ];
+            const s1Row = [
+                dateTab,
+                Number(summary?.total_revenue || 0),
+                Number(summary?.total_expense || 0),
+                Number(summary?.net_profit || 0),
+                Number(taxInfo.tax || 0),
+                taxInfo.rate,
+                Number(summary?.total_repairs || 0),
+            ];
+            XLSX.utils.book_append_sheet(wb, makeSheet(s1Headers, [s1Row]), 'สรุปภาพรวม');
+
+            /* ── Sheet 2: รายรับรายเดือน ────────────────────────────────── */
+            const s2Headers = ['เดือน', 'รายรับ (฿)', 'ค่าใช้จ่าย (฿)', 'กำไร (฿)'];
+            const s2Rows = revenue.map(r => [
+                r.month,
+                Number(r.revenue || 0),
+                Number(r.expense || 0),
+                Number(r.revenue || 0) - Number(r.expense || 0),
+            ]);
+            XLSX.utils.book_append_sheet(wb, makeSheet(s2Headers, s2Rows), 'รายรับรายเดือน');
+
+            /* ── Sheet 3: ประเภทงานซ่อม ─────────────────────────────────── */
+            const s3Headers = ['ลำดับ', 'ประเภทงาน', 'จำนวน (รายการ)', 'สัดส่วน (%)'];
+            const s3Rows = repairTypes.map((r, i) => [i + 1, r.type, Number(r.count), Number(r.percentage)]);
+            XLSX.utils.book_append_sheet(wb, makeSheet(s3Headers, s3Rows), 'ประเภทงานซ่อม');
+
+            /* ── Sheet 4: อะไหล่ที่ใช้บ่อย ─────────────────────────────── */
+            const s4Headers = ['ลำดับ', 'ชื่ออะไหล่', 'จำนวนที่ใช้ (ชิ้น)'];
+            const s4Rows = topProducts.map((p, i) => [i + 1, p.name, Number(p.sold_count)]);
+            XLSX.utils.book_append_sheet(wb, makeSheet(s4Headers, s4Rows), 'อะไหล่ที่ใช้บ่อย');
+
+            /* ── Sheet 5: รายการซ่อม (ดึงจาก API) ──────────────────────── */
+            try {
+                const repRes = await fetch(
+                    `${API_URL}/api/repairs?limit=500`,
+                    { headers: getAuthHeader() }
+                );
+                const repJson = await repRes.json();
+                if (repJson.success && repJson.data?.length > 0) {
+                    const s5Headers = [
+                        'ลำดับ', 'เลขที่ใบเสร็จ', 'ชื่อลูกค้า', 'เบอร์โทร',
+                        'ประเภทอุปกรณ์', 'ยี่ห้อ', 'รุ่น', 'อาการเสีย',
+                        'สถานะ', 'ประเมินราคา (฿)', 'วันที่รับ', 'วันที่อัปเดต',
+                    ];
+                    const statusMap = {
+                        received: 'รับเครื่อง', repairing: 'กำลังซ่อม',
+                        completed: 'ซ่อมเสร็จ', delivered: 'ส่งมอบแล้ว', cancelled: 'ยกเลิก',
+                    };
+                    const s5Rows = repJson.data.map((r, i) => [
+                        i + 1,
+                        r.order_code,
+                        r.customer_name || r.full_name || '—',
+                        r.customer_phone || r.phone || '—',
+                        r.device_type || '—',
+                        r.device_brand || '—',
+                        r.device_model || '—',
+                        r.symptoms || '—',
+                        statusMap[r.status] || r.status,
+                        Number(r.estimated_cost || 0),
+                        r.received_date ? new Date(r.received_date).toLocaleDateString('th-TH') : '—',
+                        r.updated_at ? new Date(r.updated_at).toLocaleDateString('th-TH') : '—',
+                    ]);
+                    XLSX.utils.book_append_sheet(wb, makeSheet(s5Headers, s5Rows), 'รายการซ่อมทั้งหมด');
+                }
+            } catch { /* ถ้าดึง repairs ไม่ได้ ข้ามได้ */ }
+
+            /* ── Sheet 6: รายการยกเลิก ────────────────────────────────── */
+            if (cancels.length > 0) {
+                const s6Headers = ['ลำดับ', 'เลขที่ใบเสร็จ', 'ชื่อลูกค้า', 'เบอร์โทร', 'เหตุผล', 'วันที่'];
+                const s6Rows = cancels.map((c, i) => [
+                    i + 1, c.order_code, c.customer_name, c.phone || '—',
+                    c.reason || '—',
+                    c.created_at ? new Date(c.created_at).toLocaleDateString('th-TH') : '—',
+                ]);
+                XLSX.utils.book_append_sheet(wb, makeSheet(s6Headers, s6Rows), 'รายการยกเลิก');
+            }
+
+            XLSX.writeFile(wb, `รายงานผลประกอบการ_${today}.xlsx`);
+        } catch (error) {
+            console.error('Error exporting Excel', error);
+            alert('เกิดข้อผิดพลาดในการสร้าง Excel');
+        }
+    };
+
+
     return (
         <div id="report-dashboard" className="space-y-5">
 
             {/* ── Header ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-3 flex-1">
+            <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
                     <h1 className="text-xl font-bold text-slate-800">รายงานสรุป</h1>
                     <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">Dashboard</span>
+                    <button onClick={fetchAll} className="ml-auto p-2 rounded-xl hover:bg-slate-100 transition-colors" title="รีเฟรช">
+                        <RefreshCw size={15} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100">
+                {/* Date Tabs - scrollable on mobile */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 overflow-x-auto">
                         {DATE_TABS.map(t => (
                             <button key={t} onClick={() => setDateTab(t)}
-                                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${dateTab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${dateTab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                 {t}
                             </button>
                         ))}
                     </div>
-                    <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100 transition-colors" title="รีเฟรช">
-                        <RefreshCw size={15} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                    <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0 hover:brightness-110 transition-all"
-                        style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
-                        <Download size={15} />ส่งออก (PDF)
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handleExportExcel} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white shrink-0 hover:brightness-110 transition-all bg-emerald-600">
+                            <Download size={14} /><span className="hidden sm:inline">นำออก (Excel)</span><span className="sm:hidden">Excel</span>
+                        </button>
+                        <button onClick={handleExportPDF} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white shrink-0 hover:brightness-110 transition-all"
+                            style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
+                            <Download size={14} /><span className="hidden sm:inline">ส่งออก (PDF)</span><span className="sm:hidden">PDF</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* ── ROW 1: Stat Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                 <StatCard title="รายได้รวม" value={thb(summary?.total_revenue)} icon={DollarSign} iconBg="bg-green-500" trendUp={true} sub={`ช่วง: ${dateTab}`} loading={loading} />
                 <StatCard title="ค่าใช้จ่าย" value={thb(summary?.total_expense)} icon={TrendingDown} iconBg="bg-red-500" sub="ต้นทุนอะไหล่" loading={loading} />
                 <StatCard title="กำไรสุทธิ" value={thb(summary?.net_profit)} icon={TrendingUp} iconBg="bg-emerald-500" trendUp={true} loading={loading}
@@ -248,6 +367,34 @@ export default function Reports() {
                 <StatCard title="ประมาณการภาษี" value={thb(taxInfo.tax)} icon={Calculator} iconBg="bg-amber-500" sub={taxInfo.text} loading={loading} />
                 <StatCard title="งานซ่อมทั้งหมด" value={summary?.total_repairs ?? '—'} icon={Wrench} iconBg="bg-blue-500" sub={`ช่วง: ${dateTab}`} loading={loading} />
             </div>
+
+            {/* ── ROW: Proportions ── */}
+            {!loading && summary?.proportions && (
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-r from-teal-50 to-emerald-50 rounded-2xl border border-teal-100 p-4 shadow-sm flex justify-between items-center">
+                        <div>
+                            <p className="text-xs font-semibold text-teal-600 mb-1">ยอดวันนี้ เทียบ เดือนนี้</p>
+                            <p className="text-sm text-slate-700">วันนี้ <span className="font-bold">{thb(summary.proportions.today)}</span> / เดือนนี้ {thb(summary.proportions.month)}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-2xl font-bold text-teal-600">
+                                {summary.proportions.month > 0 ? Math.round((summary.proportions.today / summary.proportions.month) * 100) : 0}%
+                            </p>
+                        </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-4 shadow-sm flex justify-between items-center">
+                        <div>
+                            <p className="text-xs font-semibold text-blue-600 mb-1">ยอดเดือนนี้ เทียบ ไตรมาสนี้</p>
+                            <p className="text-sm text-slate-700">เดือนนี้ <span className="font-bold">{thb(summary.proportions.month)}</span> / ไตรมาสนี้ {thb(summary.proportions.quarter)}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-2xl font-bold text-blue-600">
+                                {summary.proportions.quarter > 0 ? Math.round((summary.proportions.month / summary.proportions.quarter) * 100) : 0}%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── ROW 2: Revenue Bar + Repair Types Donut ── */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">

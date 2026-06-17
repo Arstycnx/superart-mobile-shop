@@ -25,5 +25,6 @@ dist-ssr
 # Ignore environment variables
 .env
 server/.env
+server/.env.production
 # Ignore uploaded images
 server/uploads/

@@ -578,7 +578,7 @@ export default function Payments() {
             {toast && <Toast msg={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
 
             {/* ── Top bar ── */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-2">
+            <div className="flex items-center justify-between px-4 sm:px-6 pt-5 pb-2">
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                         <span className="text-white font-bold text-xs">SA</span>
@@ -591,16 +591,17 @@ export default function Payments() {
                         <RefreshCw size={16} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
                     </button>
                     <button onClick={() => setShowCreate(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 ml-1"
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
                         style={{ backgroundColor: '#3b82f6' }}>
                         <Plus size={15} />
-                        เพิ่มรายการชำระ
+                        <span className="hidden sm:inline">เพิ่มรายการชำระ</span>
+                        <span className="sm:hidden">เพิ่ม</span>
                     </button>
                 </div>
             </div>
 
             {/* ── Summary cards ── */}
-            <div className="px-6 pt-2 pb-1 grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
+            <div className="px-4 sm:px-6 pt-2 pb-1 grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3 mb-2">
                 {[
                     { label: 'รับชำระแล้ว', value: summary.total_paid, count: summary.count_paid, color: '#34d399' },
                     { label: 'รอชำระ', value: summary.total_pending, count: summary.count_pending, color: '#fb923c' },
@@ -614,10 +615,10 @@ export default function Payments() {
                 ))}
             </div>
 
-            <div className="px-6 pb-6 pt-2">
+            <div className="px-4 sm:px-6 pb-6 pt-2">
                 {/* ── Tabs + Search ── */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
-                    <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex flex-col gap-3 mb-5">
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1">
                         {TABS.map(tab => {
                             const cnt = tabCount(tab.key);
                             return (
@@ -635,12 +636,12 @@ export default function Payments() {
                             );
                         })}
                     </div>
-                    <div className="flex items-center gap-2 sm:ml-auto">
-                        <div className="relative">
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1 sm:flex-none">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                             <input type="text" placeholder="ค้นหา..." value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 rounded-xl w-44 outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                                className="pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 rounded-xl w-full sm:w-44 outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
                                 style={{ backgroundColor: '#111827', border: '1px solid #1e3a5f' }} />
                         </div>
                         <div className="relative">

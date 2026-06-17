@@ -2,7 +2,7 @@ import React, { forwardRef } from 'react';
 
 const thb = (n) => Number(n || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0 });
 
-const ReceiptCard = forwardRef(({ order }, ref) => {
+const ReceiptCard = forwardRef(({ order, settings }, ref) => {
     if (!order) return null;
 
     const parts = order.parts || [];
@@ -11,16 +11,25 @@ const ReceiptCard = forwardRef(({ order }, ref) => {
     const total = subtotal + serviceCharge || Number(order.final_cost || order.estimated_cost || 0);
     const isPaid = order.is_paid > 0;
 
+    // Default fallbacks
+    const shopName = settings?.shop_name || 'SuperArt';
+    const addressLines = (settings?.address || '39 ถนนชมดอย ตำบลสุเทพ\nอำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50200').split('\n');
+    const phone = settings?.phone || '+66 61 704 9154';
+    const taxId = settings?.tax_id;
+    const footerText = settings?.footer_text || 'เอกสารนี้เป็นบันทึกสำหรับใช้เป็นหลักฐานการรับ-ส่งอุปกรณ์ กรุณาเก็บไว้เป็นหลักฐานจนกว่าจะได้รับอุปกรณ์คืนครบถ้วน';
+
     return (
         <div ref={ref} className="bg-white text-slate-800 p-8 w-[600px] font-sans mx-auto" style={{ borderTop: '8px solid #3b82f6' }}>
             {/* Header */}
             <div className="flex justify-between items-start mb-8">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-blue-600 tracking-tight mb-1">SuperArt</h1>
+                    <h1 className="text-3xl font-extrabold text-blue-600 tracking-tight mb-1">{shopName}</h1>
                     <p className="text-sm text-slate-500 font-medium">Mobile Repair Shop</p>
-                    <p className="text-xs text-slate-400 mt-2">39 ถนนชมดอย ตำบลสุเทพ</p>
-                    <p className="text-xs text-slate-400">อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50200</p>
-                    <p className="text-xs text-slate-400 mt-1">โทร: +66 61 704 9154</p>
+                    {addressLines.map((line, idx) => (
+                        <p key={idx} className={`text-xs text-slate-400 ${idx === 0 ? 'mt-2' : ''}`}>{line}</p>
+                    ))}
+                    {taxId && <p className="text-xs text-slate-400 mt-1">เลขประจำตัวผู้เสียภาษี: {taxId}</p>}
+                    <p className="text-xs text-slate-400 mt-1">โทร: {phone}</p>
                 </div>
                 <div className="text-right">
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight mb-2">ใบเสร็จรับเงิน / ใบงาน</h2>
@@ -120,8 +129,8 @@ const ReceiptCard = forwardRef(({ order }, ref) => {
                 </div>
             </div>
 
-            <div className="mt-8 text-center text-[10px] text-slate-400 pt-4 border-t border-slate-100">
-                เอกสารนี้เป็นบันทึกสำหรับใช้เป็นหลักฐานการรับ-ส่งอุปกรณ์ กรุณาเก็บไว้เป็นหลักฐานจนกว่าจะได้รับอุปกรณ์คืนครบถ้วน
+            <div className="mt-8 text-center text-[10px] text-slate-400 pt-4 border-t border-slate-100 whitespace-pre-wrap">
+                {footerText}
             </div>
         </div>
     );

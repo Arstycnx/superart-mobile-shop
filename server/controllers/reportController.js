@@ -6,6 +6,7 @@ const periodFilter = (period, col = 'created_at') => {
         case 'today': return `DATE(${col}) = CURDATE()`;
         case 'week': return `${col} >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)`;
         case 'month': return `YEAR(${col}) = YEAR(CURDATE()) AND MONTH(${col}) = MONTH(CURDATE())`;
+        case 'quarter': return `YEAR(${col}) = YEAR(CURDATE()) AND QUARTER(${col}) = QUARTER(CURDATE())`;
         case 'year': return `YEAR(${col}) = YEAR(CURDATE())`;
         default: return `YEAR(${col}) = YEAR(CURDATE()) AND MONTH(${col}) = MONTH(CURDATE())`;
     }
@@ -222,6 +223,11 @@ const getSummary = async (req, res) => {
         const [[repairs]] = await pool.query(
             `SELECT COUNT(*) AS total FROM repair_orders WHERE ${periodFilter(period, 'created_at')}`);
 
+        // Proportion logic
+        const [[todayRev]] = await pool.query(`SELECT COALESCE(SUM(total_amount), 0) AS total FROM payments p WHERE status='paid' AND DATE(p.payment_date) = CURDATE()`);
+        const [[monthRev]] = await pool.query(`SELECT COALESCE(SUM(total_amount), 0) AS total FROM payments p WHERE status='paid' AND YEAR(p.payment_date) = YEAR(CURDATE()) AND MONTH(p.payment_date) = MONTH(CURDATE())`);
+        const [[quarterRev]] = await pool.query(`SELECT COALESCE(SUM(total_amount), 0) AS total FROM payments p WHERE status='paid' AND YEAR(p.payment_date) = YEAR(CURDATE()) AND QUARTER(p.payment_date) = QUARTER(CURDATE())`);
+
         const revenue = Number(rev.total) || 0;
         const expense = Number(exp.total) || 0;
 
@@ -233,6 +239,11 @@ const getSummary = async (req, res) => {
                 net_profit: revenue - expense,
                 total_repairs: Number(repairs.total) || 0,
                 period,
+                proportions: {
+                    today: Number(todayRev.total),
+                    month: Number(monthRev.total),
+                    quarter: Number(quarterRev.total)
+                }
             },
         });
     } catch (err) {
