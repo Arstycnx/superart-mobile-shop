@@ -24,6 +24,10 @@ dist-ssr
 *.sw?
 # Ignore environment variables
 .env
+.env.production
+.env.*.local
 server/.env
+!.env.example
+!server/.env.example
 # Ignore uploaded images
 server/uploads/

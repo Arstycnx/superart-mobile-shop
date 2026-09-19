@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import API_URL from '../../api/config';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Wrench, Clock, CheckCircle, Banknote,
     AlertTriangle, Search, Plus, Edit2, Smartphone, RefreshCw,
@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 
 /* ── API ── */
-const API_BASE = `${API_URL}/api/reports/stats`;
+const API_BASE = `${API_URL}/api/reports`;
 const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
 /* ── Helpers ── */
@@ -140,7 +140,7 @@ export default function Dashboard() {
                             <button onClick={fetchDashboard} className="p-1 rounded hover:bg-slate-100 transition-colors">
                                 <RefreshCw size={13} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
                             </button>
-                            <a href="/admin/reports" className="text-xs text-blue-500 hover:underline">ดูรายงานเต็ม</a>
+                            <Link to="/admin/reports" className="text-xs text-blue-500 hover:underline">ดูรายงานเต็ม</Link>
                         </div>
                     </div>
                     {chartData.length > 0 ? (
@@ -190,9 +190,9 @@ export default function Dashboard() {
                             </div>
                         ))}
                     </div>
-                    <a href="/admin/inventory" className="block text-center text-xs text-slate-500 hover:text-blue-500 mt-4 transition-colors">
+                    <Link to="/admin/inventory" className="block text-center text-xs text-slate-500 hover:text-blue-500 mt-4 transition-colors">
                         ดูสินค้าทั้งหมด →
-                    </a>
+                    </Link>
                 </div>
             </div>
 

@@ -16,7 +16,7 @@ export default function AdminLayout() {
             return;
         }
         // Verify token with backend
-        fetch(`${API_URL}/api/auth/profile`, {
+        fetch(`${API_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then((res) => {
@@ -35,10 +35,10 @@ export default function AdminLayout() {
     return (
         <div className="flex min-h-screen bg-bg-light">
             <AdminSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-            
+
             {/* Mobile backdrop */}
             {isSidebarOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity"
                     onClick={() => setIsSidebarOpen(false)}
                 />

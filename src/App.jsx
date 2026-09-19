@@ -15,7 +15,7 @@ import './index.css';
 
 function App() {
     return (
-        <Router>
+        <Router basename={import.meta.env.BASE_URL} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
                 {/* Auth */}
                 <Route path="/" element={<LoginPage />} />

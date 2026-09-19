@@ -1,0 +1,7 @@
+# รองรับ client-side routing ของ React Router
+# ถ้า URL ไม่ตรงกับไฟล์/โฟลเดอร์จริง ให้ส่งกลับไปที่ index.html เสมอ
+RewriteEngine On
+RewriteBase /66223537/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

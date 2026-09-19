@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../../api/config';
 import {
@@ -431,9 +432,9 @@ export default function Reports() {
                             </tbody>
                         </table>
                     </div>
-                    <a href="/admin/inventory" className="block text-center text-xs text-blue-600 font-bold py-3 bg-slate-50 hover:bg-slate-100 transition-colors border-t border-slate-100 uppercase tracking-widest mt-auto">
+                    <Link to="/admin/inventory" className="block text-center text-xs text-blue-600 font-bold py-3 bg-slate-50 hover:bg-slate-100 transition-colors border-t border-slate-100 uppercase tracking-widest mt-auto">
                         ดูรายการทั้งหมด →
-                    </a>
+                    </Link>
                 </div>
             </div>
 

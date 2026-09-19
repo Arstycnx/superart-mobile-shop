@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const { sendRepairStatusUpdate } = require('../services/telegramService');
 const { updateCustomerMembership } = require('../utils/membership');
+const { getFileUrl } = require('../middleware/upload');
 
 // ─── Helper: fetch Telegram bot token from DB (falls back to env var) ──
 const getTelegramToken = async () => {
@@ -407,10 +408,10 @@ const createRequest = async (req, res) => {
         // 1. Try Multer files
         if (req.files) {
             if (req.files.before_photo && req.files.before_photo[0]) {
-                before_photo_path = `/uploads/repairs/${req.files.before_photo[0].filename}`;
+                before_photo_path = getFileUrl(req.files.before_photo[0]);
             }
             if (req.files.after_photo && req.files.after_photo[0]) {
-                after_photo_path = `/uploads/repairs/${req.files.after_photo[0].filename}`;
+                after_photo_path = getFileUrl(req.files.after_photo[0]);
             }
         }
 
@@ -560,7 +561,7 @@ const uploadPhoto = async (req, res) => {
         }
 
         const columnName = type === 'before' ? 'before_photo' : 'after_photo';
-        const fileUrl = `/uploads/repairs/${req.file.filename}`;
+        const fileUrl = getFileUrl(req.file);
 
         await pool.query(
             `UPDATE repair_orders SET ${columnName} = ? WHERE id = ?`,

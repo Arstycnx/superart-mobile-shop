@@ -121,6 +121,25 @@ const changePassword = async (req, res) => {
     }
 };
 
+// ─── POST /api/auth/forgot-password (public) ──────────────────────
+// ตรวจสอบอีเมลในระบบ — ใช้สำหรับหน้า Forgot Password (ส่ง Reset Link)
+const checkEmailExists = async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมล' });
+    }
+    try {
+        const [rows] = await pool.query('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบที่อยู่อีเมลนี้ในระบบ กรุณาตรวจสอบอีกครั้ง' });
+        }
+        return res.json({ success: true, message: `ส่งลิงก์รีเซ็ตรหัสผ่านไปยัง ${email} เรียบร้อยแล้ว` });
+    } catch (err) {
+        console.error('[checkEmailExists]', err);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดของระบบ' });
+    }
+};
+
 // ─── POST /api/auth/reset-password (public) ─────────────────────
 // ผู้ที่ลืมรหัสผ่าน — ยืนยันตัวตนด้วย email แล้วตั้งรหัสผ่านใหม่
 // (ในระบบนี้ไม่มี email OTP จึงใช้แค่ email verification เท่านั้น)
@@ -149,4 +168,4 @@ const resetPasswordByEmail = async (req, res) => {
     }
 };
 
-module.exports = { login, register, getMe, changePassword, resetPasswordByEmail };
+module.exports = { login, register, getMe, changePassword, resetPasswordByEmail, checkEmailExists };

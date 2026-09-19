@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import API_URL from '../../api/config';
+import API_URL, { resolveFileUrl } from '../../api/config';
 import {
     Search, Plus, Bell, Settings, ChevronDown, ChevronUp,
     Smartphone, User, Phone, MessageSquare, Printer,
@@ -771,11 +771,9 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                                 className="rounded-xl aspect-square flex flex-col items-center justify-center relative overflow-hidden cursor-pointer border hover:border-slate-500 transition-colors"
                                 style={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}>
                                 {order.before_photo ? (
-                                    <img 
-                                        src={order.before_photo.startsWith('/uploads') 
-                                            ? `${API_URL}${order.before_photo}` 
-                                            : `${API_URL}/uploads/repairs/${order.before_photo}`} 
-                                        alt="Before" className="w-full h-full object-cover" 
+                                    <img
+                                        src={resolveFileUrl(order.before_photo)}
+                                        alt="Before" className="w-full h-full object-cover"
                                     />
                                 ) : (
                                     <>
@@ -797,11 +795,9 @@ function ExpandedCard({ order, onCollapse, onStatusUpdated, onShowToast, onNotif
                                 className="rounded-xl aspect-square flex flex-col items-center justify-center relative overflow-hidden cursor-pointer border hover:border-slate-500 transition-colors"
                                 style={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}>
                                 {order.after_photo ? (
-                                    <img 
-                                        src={order.after_photo.startsWith('/uploads') 
-                                            ? `${API_URL}${order.after_photo}` 
-                                            : `${API_URL}/uploads/repairs/${order.after_photo}`} 
-                                        alt="After" className="w-full h-full object-cover" 
+                                    <img
+                                        src={resolveFileUrl(order.after_photo)}
+                                        alt="After" className="w-full h-full object-cover"
                                     />
                                 ) : (
                                     <>

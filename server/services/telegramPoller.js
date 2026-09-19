@@ -9,12 +9,14 @@
 const pool = require('../config/db');
 const { sendNotification } = require('./telegramService');
 
-const POLL_INTERVAL = 3000; // 3 seconds
+const POLL_INTERVAL = 3000;  // 3 seconds base
+const MAX_BACKOFF   = 60000; // 60 seconds max when network is down
 
 let offset = 0;        // Tracks the last processed update_id
 let isRunning = false;
 let pollTimer = null;
 let botToken = null;
+let consecutiveErrors = 0;  // For exponential backoff
 
 /* ─── Get bot token from DB (or fallback to env var) ───── */
 const getBotToken = async () => {
@@ -182,6 +184,8 @@ const processUpdate = async (update) => {
 };
 
 /* ─── Poll once ──────────────────────────────────────── */
+const NETWORK_ERRORS = ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'socket hang up', 'EHOSTUNREACH'];
+
 const pollOnce = async () => {
     try {
         const updates = await telegramApi('getUpdates', {
@@ -190,13 +194,28 @@ const pollOnce = async () => {
             allowed_updates: ['message'],
         });
 
+        // Successful poll — reset backoff
+        if (consecutiveErrors > 0) {
+            console.log('[TelegramPoller] Connection restored ✓');
+            consecutiveErrors = 0;
+        }
+
         for (const update of updates) {
             await processUpdate(update);
             offset = update.update_id + 1; // Mark as processed
         }
     } catch (err) {
-        // Log only non-trivial errors (network glitches are common, don't spam)
-        if (!err.message.includes('ECONNRESET') && !err.message.includes('socket hang up')) {
+        const isNetworkError = NETWORK_ERRORS.some(e => err.message.includes(e));
+
+        if (isNetworkError) {
+            consecutiveErrors++;
+            // Only log on first error, then every 20 attempts to avoid spam
+            if (consecutiveErrors === 1) {
+                console.warn('[TelegramPoller] Cannot reach Telegram API (network/firewall issue). Will retry silently...');
+            } else if (consecutiveErrors % 20 === 0) {
+                console.warn(`[TelegramPoller] Still unreachable after ${consecutiveErrors} attempts. Check your internet connection.`);
+            }
+        } else {
             console.error('[TelegramPoller] getUpdates error:', err.message);
         }
     }
@@ -232,7 +251,11 @@ const start = async () => {
     const loop = async () => {
         if (!isRunning) return;
         await pollOnce();
-        pollTimer = setTimeout(loop, POLL_INTERVAL);
+        // Exponential backoff when network is down (3s → 6s → 12s … max 60s)
+        const delay = consecutiveErrors > 0
+            ? Math.min(POLL_INTERVAL * Math.pow(2, consecutiveErrors - 1), MAX_BACKOFF)
+            : POLL_INTERVAL;
+        pollTimer = setTimeout(loop, delay);
     };
 
     loop();

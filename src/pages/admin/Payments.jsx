@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import API_URL from '../../api/config';
+import API_URL, { resolveFileUrl } from '../../api/config';
 import {
     Search, Plus, X, CheckSquare, Square, Eye,
     ChevronDown, Download, Shield, RefreshCw, AlertCircle,
@@ -400,7 +400,7 @@ function VerifyModal({ payment, onClose, onDone }) {
                         <p className="text-xs text-slate-500 mb-3 font-medium uppercase tracking-wider">สลิปการชำระเงิน</p>
                         <div className="flex-1 rounded-xl overflow-hidden" style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}>
                             {payment.payment_slip_url
-                                ? <img src={`${API_URL}${payment.payment_slip_url}`} alt="slip"
+                                ? <img src={resolveFileUrl(payment.payment_slip_url)} alt="slip"
                                     className="w-full h-full object-contain" />
                                 : <SlipMockup payment={payment} />
                             }
